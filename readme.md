@@ -1,5 +1,29 @@
+# mongo-operator
 
-初始化
+to manage a replica set of mongo in k8s.
+
+# build  && run
+
+```
+kubectl create -f deploy/crds/cache_v1alpha1_memcached_crd.yaml
+```
+
+
+
+
+
+
+
+
+
+
+--------------------
+
+
+
+
+备忘：
+
 ```
 export workdir=$GOPATH/src/github.smartx.com/mongo-operator
 mkdir -p $workpath
@@ -8,11 +32,10 @@ export GO111MODULE=on
 operator-sdk new mongo-operator
 cd mongo-operator
 ```
-
-资源初始化
 ```
-operator-sdk add api --api-version=app.smartx.com/v1alpha1 --kind=mongo
-
-operator-sdk add  controller --api-version=app.smartx.com/v1alpha1 --kind=mongo
+operator-sdk add api --api-version=db.smartx.com/v1alpha1 --kind=MongoCluster
+operator-sdk generate k8s --verbose  
+operator-sdk add controller --api-version=db.smartx.com/v1alpha1 --kind=MongoCluster 
+go mod vendor
 
 ```

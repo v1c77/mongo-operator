@@ -1,0 +1,7 @@
+apiVersion: db.smartx.com/v1alpha1
+kind: MongoCluster
+metadata:
+  name: example-mongocluster
+spec:
+  # Add fields here
+  size: 3
