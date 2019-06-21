@@ -5,7 +5,7 @@ metadata:
 spec:
   # Add fields here
   mongo:
-    # image: mongo
+    # image: mongo:2.6.12  # if change to 2.6.12, fix command to older version.
     replicas: 3  # DEPRECATED
     command:
       - mongod
