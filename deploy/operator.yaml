@@ -16,7 +16,7 @@ spec:
       containers:
         - name: mongo-operator
           # Replace this with the built image name
-          image: dockerhub.smartx.com/mongo-operator:v0.01
+          image: dockerhub.smartx.com/mongo-operator:v0.02
           command:
           - mongo-operator
           imagePullPolicy: Always

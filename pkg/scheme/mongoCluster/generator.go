@@ -32,20 +32,15 @@ func GenerateMongoClusterService(mc *dbv1alpha1.MongoCluster,
 			Name:      name,
 			Namespace: namespace,
 			Labels:    labels,
-			Annotations: map[string]string{
-				"prometheus.io/scrape": "true",
-				"prometheus.io/port":   "http",
-				"prometheus.io/path":   "/metrics",
-			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
 			Ports: []corev1.ServicePort{
 				{
-					Port:     constants.ExporterPort,
+					Port:     constants.MongoPort,
 					Protocol: corev1.ProtocolTCP,
-					Name:     constants.ExporterPortName,
+					Name:     constants.MongoPortName,
 				},
 			},
 			Selector: labels,
@@ -119,7 +114,7 @@ func getMongoDataVolumeName(mc *dbv1alpha1.MongoCluster) string {
 func getMongoVolumes(mc * dbv1alpha1.MongoCluster) []corev1.Volume {
 	// TODO(vici) TODO...
 
-	volumes := []corev1.Volume{nil}
+	volumes := []corev1.Volume{}
 	dataVolume := getMongoDataVolume(mc)
 	volumes = append(volumes, *dataVolume)
 	return volumes
