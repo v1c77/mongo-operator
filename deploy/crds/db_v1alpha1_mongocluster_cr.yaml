@@ -1,0 +1,30 @@
+apiVersion: db.smartx.com/v1alpha1
+kind: MongoCluster
+metadata:
+  name: example-mongocluster
+spec:
+  # Add fields here
+  mongo:
+    # image: mongo
+    replicas: 3  # DEPRECATED
+    command:
+      - mongod
+      - "--wiredTigerCacheSizeGB"
+      - "0.25"
+      - "--bind_ip"
+      - "0.0.0.0"
+      - "--replSet"
+      - "rs0"
+      - "--smallfiles"
+      - "--noprealloc"
+    resources:
+      requests:
+        cpu: 1
+        memory: 2Gi
+    storage:
+      storageClassName: fast-disks # specify the local pv or other pvc gens.
+      resources:
+        requests:
+          storage: 2Gi
+
+    # tolerations:
