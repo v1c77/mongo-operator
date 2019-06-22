@@ -6,7 +6,7 @@ spec:
   # Add fields here
   mongo:
     # image: mongo:2.6.12  # if change to 2.6.12, fix command to older version.
-    replicas: 3  # DEPRECATED
+    replicas: 3  # TODO(vici) TOBE DEPRECATED
     command:
       - mongod
       - "--wiredTigerCacheSizeGB"
@@ -19,7 +19,7 @@ spec:
       - "--noprealloc"
     resources:
       requests:
-        cpu: 1
+        cpu: "1"
         memory: 2Gi
     storage:
       storageClassName: fast-disks # specify the local pv or other pvc gens.

@@ -19,7 +19,7 @@ import (
 )
 
 
-func GenerateMongoClusterService(mc *dbv1alpha1.MongoCluster,
+func GenerateMCService(mc *dbv1alpha1.MongoCluster,
 	labels map[string]string) *corev1.Service {
 	name := utils.GetMCName(mc)
 	namespace := mc.Namespace
@@ -197,19 +197,19 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 							},
 							VolumeMounts: volumeMounts,
 							Command:      MongoCommand,
-							LivenessProbe: &corev1.Probe{
-								InitialDelaySeconds: constants.GraceTime,
-								TimeoutSeconds:      5,
-								Handler: corev1.Handler{
-									Exec: &corev1.ExecAction{
-										Command: []string{
-											"sh",
-											"-c",
-											"mongo --evel 'db.runCommand({ping:1})'",
-										},
-									},
-								},
-							},
+							//LivenessProbe: &corev1.Probe{
+							//	InitialDelaySeconds: constants.GraceTime,
+							//	TimeoutSeconds:      5,
+							//	Handler: corev1.Handler{
+							//		Exec: &corev1.ExecAction{
+							//			Command: []string{
+							//				"sh",
+							//				"-c",
+							//				"mongo --evel 'db.runCommand({ping:1})'",
+							//			},
+							//		},
+							//	},
+							//},
 							Resources: resources,
 							Lifecycle: &corev1.Lifecycle{
 								PreStop: &corev1.Handler{

@@ -18,6 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/failover"
+	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
+	"k8s.io/client-go/kubernetes"
+	"github.smartx.com/mongo-operator/pkg/service/mongo"
 )
 
 var log = logf.Log.WithName("controller_mongocluster")
@@ -38,7 +42,12 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileMongoCluster{
 		client:   mgr.GetClient(),
 		scheme:   mgr.GetScheme(),
-		recorder: mgr.GetRecorder("mongo-operator")}
+		recorder: mgr.GetRecorder("mongo-operator"),
+		failover: failover.NewMongoClusterFailover(
+			k8s.New(kubernetes.NewForConfigOrDie(mgr.GetConfig())),
+			mongo.New(),
+		),
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -90,6 +99,7 @@ type ReconcileMongoCluster struct {
 	client   client.Client
 	scheme   *runtime.Scheme
 	recorder record.EventRecorder
+	failover *failover.MongoClusterFailover
 }
 
 // Reconcile reads that state of the cluster for a MongoCluster object and makes changes based on the state read
@@ -109,57 +119,40 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
+			reqLogger.Info("Reconcile done, no resource to work with.")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		reqLogger.Info("some unknown error happened, retrying...")
 		return reconcile.Result{}, err
 	}
 
 	r.scheme.Default(mc)
 	mc.SetDefaults()
 
+	reqLogger.Info("debug ingo",
+		"set number", mc.Spec.Mongo.Replicas)
+
 	// use stage/syncer to manage resource changes.
 	// each type of resources managed by MC has its own syncer
-	// TODO(vici) mongo statefulset. + headless mongo-service.
 	syncers := []syncer.Interface{
-		//TODO(vici) service syncer...
+		objsyncer.NewMongoServiceSyncer(mc, r.client, r.scheme),
 		objsyncer.NewMongoStatefulSetSyncer(mc, r.client, r.scheme),
+		// TODO(vici) configMap to support mongo replica set.
+		//objsyncer.NewMongoConfigMap(mc, r.client, r.scheme),
 	}
 
 	if err = r.sync(syncers); err != nil {
+		reqLogger.Error(err,"sync error, retry now.")
 		return reconcile.Result{}, err
 	}
 
 	// TODO(vici) something about mongo ops failover.... add node. delete node.
-	//if err = r.failover.CheckAndHeal(redis); err != nil {
-	//	return reconcile.Result{}, err
-	//}
+	if err = r.failover.CheckAndHeal(mc); err != nil {
+		return reconcile.Result{}, err
+	}
 
-	return reconcile.Result{}, nil
-
-	//mcStatefulSet := mongoCluster.GenerateMCStatefulSet(mc)
-	//
-	//// Set MongoCluster instance as the owner and controller
-	//if err := controllerutil.SetControllerReference(mc, pod,
-	//	r.scheme); err != nil {
-	//	return reconcile.Result{}, err
-	//}
-	//
-	//// Check if this Pod already exists
-	//found := &corev1.Pod{}
-	//err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	//if err != nil && errors.IsNotFound(err) {
-	//	reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-	//	err = r.client.Create(context.TODO(), pod)
-	//	if err != nil {
-	//		return reconcile.Result{}, err
-	//	}
-	//
-	//	// Pod created successfully - don't requeue
-	//	return reconcile.Result{}, nil
-	//} else if err != nil {
-	//	return reconcile.Result{}, err
-	//}
+	reqLogger.Info("reconcile done.")
 	return reconcile.Result{}, nil
 }
 

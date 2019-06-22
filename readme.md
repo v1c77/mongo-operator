@@ -28,12 +28,12 @@ docker push dockerhub.smartx.com/mongo-operator:v0.02
 ```
 
 
-
 2. 快速验证
 
-operator-sdk 提供了 k8s 外运行operator 的机制
+operator-sdk 提供了 k8s 外运行 operator 的机制
 
-需要开发者配置好相应的 ~/.kube/config 到开发机。 或者也可以主动
+需要开发者配置好相应的 `~/.kube/config` 到开发机。 或者也可以主动在 `operator-sdk up local` 后指定 
+`--kubeconfig` 
 
 ```bash
 export OPERATOR_NAME=mongo-operator
@@ -42,9 +42,6 @@ operator-sdk up local --namespace=default
 ```
 
 --------------------
-
-
-
 
 备忘：
 
