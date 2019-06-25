@@ -4,48 +4,84 @@ import (
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"github.smartx.com/mongo-operator/pkg/service/mongo"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	"github.smartx.com/mongo-operator/pkg/utils"
+	"strings"
 )
 
-var log = logf.Log.WithName("mongocluster.failover")
+var logger = utils.NewLogger("mongocluster.failover")
 
 type MongoClusterFailover struct {
 	checker *MongoClusterFailoverChecker
 	//healer *MongoClusterFailoverHealer
 }
 
-func NewMongoClusterFailover(k8sService k8s.Services,
-	mongoClient mongo.Client) * MongoClusterFailover {
+func NewMongoClusterFailover(k8sService k8s.Services) *MongoClusterFailover {
 
-	checker := NewMongoClusterFailoverChecker(k8sService, mongoClient)
+	checker := NewMongoClusterFailoverChecker(k8sService)
 	//healer := NewMongoClusterFailoverHealer(k8sService, mongoClient)
-		return &MongoClusterFailover{
-			checker: checker,
-			//healer: healer,
-		}
+	return &MongoClusterFailover{
+		checker: checker,
+		//healer: healer,
+	}
 }
-
 
 //  CheckAndHeal
 func (f *MongoClusterFailover) CheckAndHeal(mc *dbv1alpha1.
 	MongoCluster) error {
 
-		fLogger := log.WithValues("Request.Namespace", mc.Namespace,
-			"Request.Name", mc.Name)
-		// TODO(yuhua) some pre-check
+	//fLogger := logger.L().WithValues("Request.Namespace", mc.Namespace,
+	//	"Request.Name", mc.Name)
+	// TODO(yuhua) some pre-check
+	// TODO(yuhua) check pods status. pod 需要全部启动并且获取到 ip.
+	// pod 数量需要与 spec.Replicas 一致。
 
-		// 获取 mongoCluster pod service
-		dnsList := f.checker.GetMembersDNS(mc)
-		fLogger.Info("Check pod Dns list", "dns", dnsList)
-		// TODO 获取  mongo 串.
+	// ================== mongo status check/
 
-		err := f.checker.MemebersStatus(mc)
-		if err!= nil {
-			fLogger.Error(err, "Status not ok.")
+	// TODO mongo replica
+	// 1。 not -init , 创建之，
+
+	// 2。 other(pod  断电等意外重启，集群健康时， 进到相应节点 reconfig 之)
+	err := f.checkAndHealMongoReplicaSet(mc)
+	if err != nil {
+		return err
+	}
+
+	// TODO 其他状态待定。
+
+	// - check pod, service, network, mongo replicaset..
+
+	return nil
+}
+
+// checkAndHealMongoReplicaSet
+func (f *MongoClusterFailover) checkAndHealMongoReplicaSet(
+	mc *dbv1alpha1.MongoCluster) error {
+
+	// 获取 mongoCluster pod service
+	dnsList := f.checker.GetMembersDNS(mc)
+
+	url := dnsList[0]
+	logger.Info("Check pod Dns list", "url", url)
+	mongoClient := mongo.NewClient(url)
+
+	mgoSession, err := mongoClient.DialDirect()
+	if err != nil {
+		return err
+	}
+
+	rStatus, err := f.checker.CheckReplicaSetStatus(mgoSession)
+	if err != nil {
+		if strings.Contains(err.Error(),
+			"no replset config has been received") {
+			// do init
+			logger.Info("do mongo cluster initial.")
+			// make
+			return nil
+		} else {
+			return err
 		}
-		//statusResp := f.checker.GetReplicaSetStatus()
-		//fLogger.Info("GetReplicaSet status", "status", StatusResp.msg)
-		// - check pod, service, network, mongo replicaset..
+	}
 
-		return nil
+	logger.Info("get status", "status", rStatus)
+	return nil
 }

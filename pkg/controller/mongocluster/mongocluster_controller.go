@@ -21,7 +21,6 @@ import (
 	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/failover"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"k8s.io/client-go/kubernetes"
-	"github.smartx.com/mongo-operator/pkg/service/mongo"
 )
 
 var log = logf.Log.WithName("controller_mongocluster")
@@ -45,7 +44,6 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 		recorder: mgr.GetRecorder("mongo-operator"),
 		failover: failover.NewMongoClusterFailover(
 			k8s.New(kubernetes.NewForConfigOrDie(mgr.GetConfig())),
-			mongo.New(),
 		),
 	}
 }
