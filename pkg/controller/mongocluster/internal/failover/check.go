@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.smartx.com/mongo-operator/pkg/utils"
 	"github.com/globalsign/mgo"
+	"github.smartx.com/mongo-operator/pkg/constants"
 )
 
 type MongoClusterFailoverChecker struct {
@@ -43,7 +44,9 @@ func (c *MongoClusterFailoverChecker) MemebersStatus(mc *dbv1alpha1.
 	MongoCluster) error {
 		// TODO refactor it !!!
 		dnsList := c.GetMembersDNS(mc)
-		url := dnsList[0]
+		url := fmt.Sprintf("%s:%v", dnsList[0], constants.MongoPort)
+		//url := "10.76.58.209:27017"
+		log.Info("use url", "url", url)
 		Session, err := mgo.Dial(url)
 		if err != nil {
 			log.Info("can not get client", "error", err)

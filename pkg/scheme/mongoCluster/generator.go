@@ -160,7 +160,8 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 		mc.Name))
 	volumeMounts := getMCVolumeMounts(mc)
 	//volumes := getMongoVolumes(mc)
-
+	//TODO(yuhua) fix sync scale
+	// mc.Spec.Mongo.Replicas = 4
 	ss := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,  // {MC.Name}-mongo
