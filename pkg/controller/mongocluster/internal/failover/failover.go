@@ -3,7 +3,6 @@ package failover
 import (
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
-	"github.smartx.com/mongo-operator/pkg/service/mongo"
 	"github.smartx.com/mongo-operator/pkg/utils"
 	"strings"
 )
@@ -12,13 +11,14 @@ var logger = utils.NewLogger("mongocluster.failover")
 
 type MongoClusterFailover struct {
 	checker *MongoClusterFailoverChecker
-	//healer *MongoClusterFailoverHealer
+	healer *MongoClusterFailoverHealer
 }
+
 
 func NewMongoClusterFailover(k8sService k8s.Services) *MongoClusterFailover {
 
 	checker := NewMongoClusterFailoverChecker(k8sService)
-	//healer := NewMongoClusterFailoverHealer(k8sService, mongoClient)
+	healer := NewMongoClusterFailoverHealer(k8sService)
 	return &MongoClusterFailover{
 		checker: checker,
 		//healer: healer,
@@ -41,7 +41,7 @@ func (f *MongoClusterFailover) CheckAndHeal(mc *dbv1alpha1.
 	// 1。 not -init , 创建之，
 
 	// 2。 other(pod  断电等意外重启，集群健康时， 进到相应节点 reconfig 之)
-	err := f.checkAndHealMongoReplicaSet(mc)
+	err := f.checkAndHealMongoReplSet(mc)
 	if err != nil {
 		return err
 	}
@@ -54,34 +54,46 @@ func (f *MongoClusterFailover) CheckAndHeal(mc *dbv1alpha1.
 }
 
 // checkAndHealMongoReplicaSet
-func (f *MongoClusterFailover) checkAndHealMongoReplicaSet(
+func (f *MongoClusterFailover) checkAndHealMongoReplSet(
 	mc *dbv1alpha1.MongoCluster) error {
 
-	// 获取 mongoCluster pod service
-	dnsList := f.checker.GetMembersDNS(mc)
+	//TODO 获取 mongoCluster pod service 状态
 
-	url := dnsList[0]
-	logger.Info("Check pod Dns list", "url", url)
-	mongoClient := mongo.NewClient(url)
+	// TODO: from mc.Status get replSet cluster status. only if not inited
+	// cluster can do initial step.
+	//isInited := mc.Status.Replicas.IsInited.
 
-	mgoSession, err := mongoClient.DialDirect()
-	if err != nil {
-		return err
+	podStatus := f.checker.GetMongoPodsStatus(mc)
+
+	var replSetLabels = map[string]string{
+		"app.kubernetes.io/managed-by": "mongo-operator",
+		"cluster": mc.Name,
 	}
+	for url, podStatus := range podStatus {
+		// TODO check if all the pods health. and then do the init.
 
-	rStatus, err := f.checker.CheckReplicaSetStatus(mgoSession)
-	if err != nil {
-		if strings.Contains(err.Error(),
-			"no replset config has been received") {
-			// do init
-			logger.Info("do mongo cluster initial.")
-			// make
-			return nil
-		} else {
-			return err
+		// init mongo replicaset.
+		if podStatus.Err != nil{
+			if strings.Contains(podStatus.Err.Error(),
+				"no replset config has been received") {
+				// do init
+				logger.Info("do mongo cluster initial.", "address", url)
+
+				err := f.healer.MongoReplSetInitial(url, replSetLabels)
+				if err != nil {
+					// TODO
+				}
+			} else {
+				// other issue like pod restart.
+				return podStatus.Err
+			}
 		}
-	}
 
-	logger.Info("get status", "status", rStatus)
+		return nil
+
+	}
 	return nil
 }
+
+
+

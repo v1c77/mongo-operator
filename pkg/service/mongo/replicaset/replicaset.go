@@ -256,6 +256,7 @@ func doAttemptInitiate(monotonicSession *mgo.Session, cfg []Config) error {
 // See http://docs.mongodb.org/manual/reference/method/rs.initiate/ for more
 // details.
 func Initiate(session *mgo.Session, address, name string, tags map[string]string) error {
+	logger.Info("Try to init a Mongo Cluster.")
 	monotonicSession := session.Clone()
 	defer monotonicSession.Close()
 	monotonicSession.SetMode(mgo.Monotonic, true)
@@ -269,6 +270,8 @@ func Initiate(session *mgo.Session, address, name string, tags map[string]string
 	if buildInfo.VersionAtLeast(4) {
 		protocolVersion = 1
 	}
+	logger.Info("change protocol to suit mongod version", "mongodVersion",
+		buildInfo.Version, "protocol", protocolVersion)
 
 	// We don't know mongod's ability to use a correct IPv6 addr format
 	// until the server is started, but we need to know before we can start

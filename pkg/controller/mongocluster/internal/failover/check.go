@@ -7,6 +7,8 @@ import (
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"github.smartx.com/mongo-operator/pkg/service/mongo/replicaset"
 	"github.smartx.com/mongo-operator/pkg/utils"
+	"github.smartx.com/mongo-operator/pkg/service/mongo"
+	"strings"
 )
 
 type MongoClusterFailoverChecker struct {
@@ -19,7 +21,7 @@ func NewMongoClusterFailoverChecker(k8sService k8s.Services) *MongoClusterFailov
 	}
 }
 
-func (c *MongoClusterFailoverChecker) CheckReplicaSetStatus(session *mgo.
+func (c *MongoClusterFailoverChecker) CheckReplSetStatus(session *mgo.
 	Session) (
 	*replicaset.Status, error) {
 	monotonicSession := session.Clone()
@@ -40,6 +42,53 @@ func (c *MongoClusterFailoverChecker) GetMembersDNS(mc *dbv1alpha1.
 	}
 	return dnsList
 }
+
+type podReplicaStatus struct {
+	Status *replicaset.Status
+	Err error
+	IsReplica bool
+}
+
+// checkMongoPodsStatus check all alive mongo instance status
+func (c *MongoClusterFailoverChecker) GetMongoPodsStatus(mc *dbv1alpha1.
+MongoCluster) map[string]podReplicaStatus {
+	dnsList :=  c.GetMembersDNS(mc)
+	var podsMap = map[string]podReplicaStatus{}
+	for _, url := range dnsList {
+		mongoClient := mongo.NewClient(url)
+		mgoSession, err := mongoClient.DialDirect()
+		if err != nil {
+			// mongod not started or network error pods
+			podsMap[url] = podReplicaStatus{
+				Status: nil,
+				Err: err,
+				IsReplica: false, //ignore this type pods until Dial connected.x
+			}
+			continue
+		}
+		status, err := c.CheckReplSetStatus(mgoSession)
+		if err != nil {
+			if strings.Contains(err.Error(),
+				"no replset config has been received") {
+				podsMap[url] = podReplicaStatus{
+					Status: status,
+					Err: err,
+					IsReplica: false,
+				}
+				continue
+			}
+		}
+		podsMap[url] = podReplicaStatus{
+			Status: status,
+			Err: err,
+			IsReplica: true,
+		}
+
+		mgoSession.Close()
+	}
+	return podsMap
+}
+
 
 //func (c *MongoClusterFailoverChecker) MemebersStatus(mc *dbv1alpha1.
 //	MongoCluster) error {
