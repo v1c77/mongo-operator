@@ -116,6 +116,8 @@ github.com/imdario/mergo
 github.com/joho/godotenv
 # github.com/json-iterator/go v1.1.6
 github.com/json-iterator/go
+# github.com/juju/errors v0.0.0-20190207033735-e65537c515d7
+github.com/juju/errors
 # github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter

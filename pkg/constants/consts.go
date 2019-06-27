@@ -8,5 +8,6 @@ const (
 	MCRoleName                   = "mongo"
 	GraceTime              		 = 15
 	MongoStorageVolumeName       = "mongo-persistent-storage"
+	MongoReplSetName			 = "rs0"
 
 )

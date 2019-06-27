@@ -1,10 +1,6 @@
 package mongoCluster
 
 import (
-	//"fmt"
-
-	//"github.com/lithammer/dedent"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	//policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -61,7 +57,7 @@ func getMongoCommand(mc *dbv1alpha1.MongoCluster) []string {
 		"--bind_ip",
 		"0.0.0.0",
 		"--replSet",
-		"rs0",
+		constants.MongoReplSetName,
 		"--smallfiles",
 		"--noprealloc",
 	}

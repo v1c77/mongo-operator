@@ -1,3 +1,4 @@
+// source from python-mongo-operator and github.com/juju/mongo-replset
 package replicaset
 
 import (
@@ -5,9 +6,12 @@ import (
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	"github.smartx.com/mongo-operator/pkg/utils"
+	"github.com/juju/errors"
 	"sort"
 	"strings"
 	"time"
+	"io"
+	"syscall"
 )
 
 var logger = utils.NewLogger("mongocluster.service.mongo.replicaset")
@@ -326,3 +330,287 @@ func Initiate(session *mgo.Session, address, name string, tags map[string]string
 	}
 	return err
 }
+
+// CurrentConfig returns the Config for the given session's replica set.  If
+// there is no current config, the error returned will be mgo.ErrNotFound.
+var CurrentConfig = currentConfig
+
+func currentConfig(session *mgo.Session) (*Config, error) {
+	cfg := &Config{}
+	monotonicSession := session.Clone()
+	defer monotonicSession.Close()
+	monotonicSession.SetMode(mgo.Monotonic, true)
+	err := monotonicSession.DB("local").C("system.replset").Find(nil).One(cfg)
+	if err == mgo.ErrNotFound {
+		return nil, err
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot get replset config: %s", err.Error())
+	}
+
+	members := make([]Member, len(cfg.Members), len(cfg.Members))
+	for index, member := range cfg.Members {
+		member.Address = formatIPv6AddressWithBrackets(member.Address)
+		members[index] = member
+	}
+	// Sort the values by Member.Id
+	sort.Slice(members, func(i, j int) bool { return members[i].Id < members[j].Id })
+	cfg.Members = members
+	return cfg, nil
+}
+
+// findMaxId looks through both sets of members and makes sure we cannot reuse an Id value
+func findMaxId(oldMembers, newMembers []Member) int {
+	max := 0
+	for _, m := range oldMembers {
+		if m.Id > max {
+			max = m.Id
+		}
+	}
+	// Also check if any of the members being passed in already have an Id that we would be reusing.
+	for _, m := range newMembers {
+		if m.Id > max {
+			max = m.Id
+		}
+	}
+	return max
+}
+
+// applyReplSetConfig applies the new config to the mongo session. It also logs
+// what the changes are. It checks if the replica set changes cause the DB
+// connection to be dropped. If so, it Refreshes the session and tries to Ping
+// again.
+func applyReplSetConfig(cmd string, session *mgo.Session, oldconfig, newconfig *Config) error {
+	logger.Infof("%s() changing replica set\nfrom %s\nto %s",
+		cmd, fmtConfigForLog(oldconfig), fmtConfigForLog(newconfig))
+
+	buildInfo, err := getBuildInfo(session)
+	if err != nil {
+		return err
+	}
+	// https://jira.mongodb.org/browse/SERVER-5436
+	if !buildInfo.VersionAtLeast(2, 7, 4) {
+		// newConfig here is internal and safe to mutate
+		for index, member := range newconfig.Members {
+			newconfig.Members[index].Address = formatIPv6AddressWithoutBrackets(member.Address)
+			logger.Infof("replica set using IP addr %s",
+				newconfig.Members[index].Address)
+		}
+	}
+	err = session.Run(bson.D{{"replSetReconfig", newconfig}}, nil)
+	if err == io.EOF {
+		// If the primary changes due to replSetReconfig, then all
+		// current connections are dropped.
+		// Refreshing should fix us up.
+		logger.Infof("got EOF while running %s(), calling session.Refresh()",
+			cmd)
+		session.Refresh()
+	} else if err != nil {
+		// For all errors that aren't EOF, return immediately
+		return err
+	}
+	err = nil
+	// We will only try to Ping 2 times
+	for i := 0; i < 2; i++ {
+		// err was either nil, or EOF and we called Refresh, so Ping to
+		// make sure we're actually connected
+		err = session.Ping()
+		if err == nil {
+			break
+		}
+	}
+	return err
+}
+
+// Add adds the given members to the session's replica set.  Duplicates of
+// existing replicas will be ignored.
+//
+// Members will have their Ids set automatically if they are not already > 0
+func Add(session *mgo.Session, members ...Member) error {
+	config, err := CurrentConfig(session)
+	if err != nil {
+		return err
+	}
+	oldconfig := *config
+	config.Version++
+	max := findMaxId(config.Members, members)
+
+outerLoop:
+	for _, newMember := range members {
+		for _, member := range config.Members {
+			if member.Address == newMember.Address {
+				// already exists, skip it
+				continue outerLoop
+			}
+		}
+		// let the caller specify an id if they want, treat zero as unspecified
+		if newMember.Id < 1 {
+			max++
+			newMember.Id = max
+		}
+		config.Members = append(config.Members, newMember)
+	}
+	return applyReplSetConfig("Add", session, &oldconfig, config)
+}
+
+// Config reports information about the configuration of a given mongo node
+type IsMasterResults struct {
+	// The following fields hold information about the specific mongodb node.
+	IsMaster  bool      `bson:"ismaster"`
+	Secondary bool      `bson:"secondary"`
+	Arbiter   bool      `bson:"arbiterOnly"`
+	Address   string    `bson:"me"`
+	LocalTime time.Time `bson:"localTime"`
+
+	// The following fields hold information about the replica set.
+	ReplicaSetName string   `bson:"setName"`
+	Addresses      []string `bson:"hosts"`
+	Arbiters       []string `bson:"arbiters"`
+	PrimaryAddress string   `bson:"primary"`
+}
+
+// IsMaster returns information about the configuration of the node that
+// the given session is connected to.
+func IsMaster(session *mgo.Session) (*IsMasterResults, error) {
+	results := &IsMasterResults{}
+	err := session.Run("isMaster", results)
+	if err != nil {
+		return nil, err
+	}
+
+	results.Address = formatIPv6AddressWithBrackets(results.Address)
+	results.PrimaryAddress = formatIPv6AddressWithBrackets(results.PrimaryAddress)
+	for index, address := range results.Addresses {
+		results.Addresses[index] = formatIPv6AddressWithBrackets(address)
+	}
+	return results, nil
+}
+
+var ErrMasterNotConfigured = fmt.Errorf("mongo master not configured")
+
+// MasterHostPort returns the "address:port" string for the primary
+// mongo server in the replicaset. It returns ErrMasterNotConfigured if
+// the replica set has not yet been initiated.
+func MasterHostPort(session *mgo.Session) (string, error) {
+	results, err := IsMaster(session)
+	if err != nil {
+		return "", err
+	}
+	if results.PrimaryAddress == "" {
+		return "", ErrMasterNotConfigured
+	}
+	return results.PrimaryAddress, nil
+}
+
+// CurrentMembers returns the current members of the replica set.
+func CurrentMembers(session *mgo.Session) ([]Member, error) {
+	cfg, err := CurrentConfig(session)
+	if err != nil {
+		return nil, err
+	}
+	return cfg.Members, nil
+}
+
+// StepDownPrimary asks the current mongo primary to step down.
+// Note that triggering a step down causes all client connections to be
+// disconnected. We explicitly treat the io.EOF we get as not being an error,
+// but all other sessions will also be disconnected.
+func StepDownPrimary(session *mgo.Session) error {
+	strictSession := session.Clone()
+	defer strictSession.Close()
+	// StepDown can only be called on the primary
+	session.SetMode(mgo.Primary, true)
+	// replSetStepDown takes a few optional parameters that vary based on what
+	// version of Mongo is running. In Mongo 2.4 it just takes the "step down
+	// seconds" which claims to default to 60s.
+	// In 3.2 it can also take secondaryCatchUpPeriodSecs which is supposed to
+	// start at 10s. However, testing shows that not passing either gives:
+	// err{"stepdown period must be longer than secondaryCatchUpPeriodSecs"}
+	err := session.Run(bson.D{{"replSetStepDown", 60.0}}, nil)
+	// we expect to get io.EOF so don't treat it as a failure.
+	if err == io.EOF {
+		return nil
+	}
+	return err
+}
+
+var connectionErrors = []syscall.Errno{
+	syscall.ECONNABORTED, // "software caused connection abort"
+	syscall.ECONNREFUSED, // "connection refused"
+	syscall.ECONNRESET,   // "connection reset by peer"
+	syscall.ENETRESET,    // "network dropped connection on reset"
+	syscall.ETIMEDOUT,    // "connection timed out"
+}
+
+
+func isConnectionNotAvailable(err error) bool {
+	if err == nil {
+		return false
+	}
+	// mgo returns io.EOF from session operations when the connection
+	// has been dropped.
+	if errors.Cause(err) == io.EOF {
+		return true
+	}
+	// An errno may be returned so we check the connection-related ones.
+	for _, errno := range connectionErrors {
+		if errors.Cause(err) == errno {
+			return true
+		}
+	}
+	return false
+}
+
+// IsReady checks on the status of all members in the replicaset
+// associated with the provided session. If we can connect and the majority of
+// members are ready then the result is true.
+func IsReady(session *mgo.Session) (bool, error) {
+	status, err := getCurrentStatus(session)
+	if isConnectionNotAvailable(err) {
+		// The connection dropped...
+		logger.Errorf("DB connection dropped so reconnecting")
+		session.Refresh()
+		return false, nil
+	}
+	if err != nil {
+		// Fail for any other reason.
+		return false, errors.Trace(err)
+	}
+
+	majority := (len(status.Members) / 2) + 1
+	healthy := 0
+	// Check the members.
+	for _, member := range status.Members {
+		if member.Healthy {
+			healthy += 1
+		}
+	}
+	if healthy < majority {
+		logger.Errorf("not enough members ready")
+		return false, nil
+	}
+	return true, nil
+}
+
+// Fixme we use re reconcile logical, try not to block operator.
+//// WaitUntilReady waits until all members of the replicaset are ready.
+//// It will retry every 10 seconds until the timeout is reached. Dropped
+//// connections will trigger a reconnect.
+//func WaitUntilReady(session *mgo.Session, timeout int) error {
+//	attempts := utils.AttemptStrategy{
+//		Delay: 10 * time.Second,
+//		Total: time.Duration(timeout) * time.Second,
+//	}
+//	var err error
+//	ready := false
+//	for a := attempts.Start(); !ready && a.Next(); {
+//		ready, err = isReady(session)
+//		if err != nil {
+//			return errors.Trace(err)
+//		}
+//	}
+//	if !ready {
+//		return errors.Errorf("timed out after %d seconds", timeout)
+//	}
+//	return nil
+//}
