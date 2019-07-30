@@ -4,12 +4,15 @@ import (
 	"context"
 
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
+	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/failover"
 	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/objsyncer"
+	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"github.smartx.com/mongo-operator/pkg/staging/syncer"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -18,9 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/failover"
-	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
-	"k8s.io/client-go/kubernetes"
 )
 
 var log = logf.Log.WithName("controller_mongocluster")
@@ -141,7 +141,7 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 	}
 
 	if err = r.sync(syncers); err != nil {
-		reqLogger.Error(err,"sync error, retry now.")
+		reqLogger.Error(err, "sync error, retry now.")
 		return reconcile.Result{}, err
 	}
 

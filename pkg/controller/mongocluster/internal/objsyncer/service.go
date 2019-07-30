@@ -1,15 +1,12 @@
 package objsyncer
 
-
-
-
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.smartx.com/mongo-operator/pkg/staging/syncer"
-	"github.smartx.com/mongo-operator/pkg/scheme/mongoCluster"
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
+	"github.smartx.com/mongo-operator/pkg/scheme/mongoCluster"
+	"github.smartx.com/mongo-operator/pkg/staging/syncer"
 )
 
 // NewMongoServiceSyncer returns a new sync.

@@ -1,9 +1,10 @@
 package v1alpha1
+
 // set default for MC spec.
 
 const (
 	defaultMongoReplica = 3
-	defaultMongoImage = "mongo"
+	defaultMongoImage   = "mongo"
 	//defaultImagePullPolicy = ???
 	//defaultExporterImage = "prometheus-mongo-exporter"
 

@@ -1,13 +1,13 @@
 package kubernetes
 
 import (
-"fmt"
-"strings"
+	"fmt"
+	"strings"
 
-appsv1 "k8s.io/api/apps/v1"
-corev1 "k8s.io/api/core/v1"
-metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-"k8s.io/client-go/kubernetes"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // StatefulSet the StatefulSet service that knows how to interact with k8s to manage them

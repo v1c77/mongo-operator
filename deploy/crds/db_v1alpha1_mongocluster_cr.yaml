@@ -6,17 +6,24 @@ spec:
   # Add fields here
   mongo:
     # image: mongo:2.6.12  # if change to 2.6.12, fix command to older version.
+    image: mongo:4.0.11
+    imagePullPolicy: IfNotPresent
     replicas: 3  # TODO(vici) TOBE DEPRECATED
-    command:
-      - mongod
-      - "--wiredTigerCacheSizeGB"
-      - "0.25"
-      - "--bind_ip"
-      - "0.0.0.0"
-      - "--replSet"
-      - "rs0"
-      - "--smallfiles"
-      - "--noprealloc"
+    replSet: zbs
+    wiredTigerCacheSize: "0.25"
+    bindIp: 0.0.0.0
+    smallfiles: true
+    noprealloc: true
+#    command:
+#      - mongod
+#      - "--wiredTigerCacheSizeGB"
+#      - "0.25"
+#      - "--bind_ip"
+#      - "0.0.0.0"
+#      - "--smallfiles"
+#      - "--noprealloc"
+#      - "--replSet"
+#      - "rs0"
     resources:
       requests:
         cpu: "1"
@@ -25,6 +32,9 @@ spec:
       storageClassName: fast-disks # specify the local pv or other pvc gens.
       resources:
         requests:
-          storage: 2Gi
+          storage: 25Gi
+    tolerations:
+    - key: node-role.kubernetes.io/master
+      effect: NoSchedule
 
-    # tolerations:
+status: {}

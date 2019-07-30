@@ -5,9 +5,9 @@ import (
 	"github.com/globalsign/mgo"
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
+	"github.smartx.com/mongo-operator/pkg/service/mongo"
 	"github.smartx.com/mongo-operator/pkg/service/mongo/replicaset"
 	"github.smartx.com/mongo-operator/pkg/utils"
-	"github.smartx.com/mongo-operator/pkg/service/mongo"
 	"strings"
 )
 
@@ -44,15 +44,15 @@ func (c *MongoClusterFailoverChecker) GetMembersDNS(mc *dbv1alpha1.
 }
 
 type podReplicaStatus struct {
-	Status *replicaset.Status
-	Err error
+	Status    *replicaset.Status
+	Err       error
 	IsReplica bool
 }
 
 // checkMongoPodsStatus check all alive mongo instance status
 func (c *MongoClusterFailoverChecker) GetMongoPodsStatus(mc *dbv1alpha1.
-MongoCluster) map[string]podReplicaStatus {
-	dnsList :=  c.GetMembersDNS(mc)
+	MongoCluster) map[string]podReplicaStatus {
+	dnsList := c.GetMembersDNS(mc)
 	var podsMap = map[string]podReplicaStatus{}
 	for _, url := range dnsList {
 		mongoClient := mongo.NewClient(url)
@@ -60,8 +60,8 @@ MongoCluster) map[string]podReplicaStatus {
 		if err != nil {
 			// mongod not started or network error pods
 			podsMap[url] = podReplicaStatus{
-				Status: nil,
-				Err: err,
+				Status:    nil,
+				Err:       err,
 				IsReplica: false, //ignore this type pods until Dial connected.x
 			}
 			continue
@@ -71,16 +71,16 @@ MongoCluster) map[string]podReplicaStatus {
 			if strings.Contains(err.Error(),
 				"no replset config has been received") {
 				podsMap[url] = podReplicaStatus{
-					Status: status,
-					Err: err,
+					Status:    status,
+					Err:       err,
 					IsReplica: false,
 				}
 				continue
 			}
 		}
 		podsMap[url] = podReplicaStatus{
-			Status: status,
-			Err: err,
+			Status:    status,
+			Err:       err,
 			IsReplica: true,
 		}
 
@@ -88,7 +88,6 @@ MongoCluster) map[string]podReplicaStatus {
 	}
 	return podsMap
 }
-
 
 //func (c *MongoClusterFailoverChecker) MemebersStatus(mc *dbv1alpha1.
 //	MongoCluster) error {

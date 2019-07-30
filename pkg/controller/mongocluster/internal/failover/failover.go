@@ -75,17 +75,21 @@ func (f *MongoClusterFailover) checkAndHealMongoReplSet(
 			healthNode = append(healthNode, url)
 		}
 	}
+
+	logger.Info("", "healthNode", healthNode, "newNode", newNode,
+		"issueNode", issueNode)
 	// do initiate in new node.
 	if len(newNode) == len(podStatus) && len(newNode) == int(mc.Spec.Mongo.
 		Replicas) {
-		err := f.healer.MongoReplSetInitiate(mc, newNode[0], newNode[1:]...)
-		if err != nil {
+		return f.healer.MongoReplSetInitiate(mc, newNode[0], newNode[1:]...)
+	}
+
+	if len(newNode) > 0 {
+		// TODO get not recover mode health pod
+		if err := f.healer.MongoReplSetAdd(mc, healthNode[0],
+			newNode...); err != nil {
 			return err
 		}
-	}
-	err := f.healer.MongoReplSetAddMember(mc, newNode...)
-	if err != nil {
-		return err
 	}
 	//TODO try to heal other mongo pod.
 	// fixme if we should handle long time recover mode.

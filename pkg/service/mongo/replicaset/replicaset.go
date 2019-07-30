@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.smartx.com/mongo-operator/pkg/utils"
 	"github.com/juju/errors"
+	"github.smartx.com/mongo-operator/pkg/utils"
+	"io"
 	"sort"
 	"strings"
-	"time"
-	"io"
 	"syscall"
+	"time"
 )
 
 var logger = utils.NewLogger("mongocluster.service.mongo.replicaset")
@@ -541,7 +541,6 @@ var connectionErrors = []syscall.Errno{
 	syscall.ENETRESET,    // "network dropped connection on reset"
 	syscall.ETIMEDOUT,    // "connection timed out"
 }
-
 
 func isConnectionNotAvailable(err error) bool {
 	if err == nil {

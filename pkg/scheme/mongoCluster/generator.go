@@ -14,7 +14,6 @@ import (
 	//"github.com/go-openapi/spec"
 )
 
-
 func GenerateMCService(mc *dbv1alpha1.MongoCluster,
 	labels map[string]string) *corev1.Service {
 	name := utils.GetMCName(mc)
@@ -93,7 +92,7 @@ func generateResourceList(cpu string, memory string) corev1.ResourceList {
 func getMCVolumeMounts(mc *dbv1alpha1.MongoCluster) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
-			Name: getMongoDataVolumeName(mc),
+			Name:      getMongoDataVolumeName(mc),
 			MountPath: "/data/db",
 		},
 	}
@@ -107,7 +106,7 @@ func getMongoDataVolumeName(mc *dbv1alpha1.MongoCluster) string {
 }
 
 // getMongoVolumes return all used volume like configMap, pv, secrets.
-func getMongoVolumes(mc * dbv1alpha1.MongoCluster) []corev1.Volume {
+func getMongoVolumes(mc *dbv1alpha1.MongoCluster) []corev1.Volume {
 	// TODO(vici) TODO...
 
 	volumes := []corev1.Volume{}
@@ -123,25 +122,25 @@ func getMongoDataVolume(mc *dbv1alpha1.MongoCluster) *corev1.Volume {
 
 func getMongoVolumeClaimTemplates(mc *dbv1alpha1.MongoCluster) []corev1.
 	PersistentVolumeClaim {
-		return []corev1.PersistentVolumeClaim{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: getMongoDataVolumeName(mc),
-				},
-				Spec: corev1.PersistentVolumeClaimSpec{
-					AccessModes: []corev1.PersistentVolumeAccessMode{
-						corev1.ReadWriteOnce,
-					},
-					StorageClassName: &mc.Spec.Mongo.Storage.StorageClassName,
-					Resources: mc.Spec.Mongo.Storage.Resources,
-				},
+	return []corev1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: getMongoDataVolumeName(mc),
 			},
-		}
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteOnce,
+				},
+				StorageClassName: &mc.Spec.Mongo.Storage.StorageClassName,
+				Resources:        mc.Spec.Mongo.Storage.Resources,
+			},
+		},
+	}
 }
 
 func getGraceTime() *int64 {
-	 graceTime := int64(constants.GraceTime)
-	 return &graceTime
+	graceTime := int64(constants.GraceTime)
+	return &graceTime
 }
 
 // GenerateMCStatefulSet generate a standard mongoCluster statefulset
@@ -160,9 +159,9 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 	// mc.Spec.Mongo.Replicas = 4
 	ss := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,  // {MC.Name}-mongo
+			Name:      name,      // {MC.Name}-mongo
 			Namespace: namespace, // default
-			Labels:    labels, // app={MC.Name};
+			Labels:    labels,    // app={MC.Name};
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName: name,
@@ -178,7 +177,7 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
-					Tolerations: mc.Spec.Mongo.Tolerations,
+					Tolerations:                   mc.Spec.Mongo.Tolerations,
 					TerminationGracePeriodSeconds: getGraceTime(),
 					Containers: []corev1.Container{
 						{
@@ -212,7 +211,7 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 								PreStop: &corev1.Handler{
 									Exec: &corev1.ExecAction{
 										Command: []string{"/bin/sh", "-c",
-										"echo  'TODO some preStop script.'"},
+											"echo  'TODO some preStop script.'"},
 									},
 								},
 							},

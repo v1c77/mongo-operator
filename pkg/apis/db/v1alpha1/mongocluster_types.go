@@ -15,18 +15,23 @@ type MongoClusterSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	Mongo    MongoSettings `json:"mongo,omitempty"`
+	Mongo MongoSettings `json:"mongo,omitempty"`
 }
 
 // MongoSettings define the specification of the mongo cluster
 type MongoSettings struct {
-	Image           string              `json:"image,omitempty"`
-	ImagePullPolicy corev1.PullPolicy   `json:"imagePullPolicy,omitempty"`
-	Replicas        int32               `json:"replicas,omitempty"`
-	Resources       MongoResources      `json:"resources,omitempty"`
-	Command         []string            `json:"command,omitempty"`
-	Storage         MongoStorage        `json:"storage,omitempty"`
-	Tolerations     []corev1.Toleration `json:"tolerations,omitempty"`
+	Image               string              `json:"image,omitempty"`
+	ImagePullPolicy     corev1.PullPolicy   `json:"imagePullPolicy,omitempty"`
+	Replicas            int32               `json:"replicas,omitempty"`
+	ReplSet             string              `json:"replSet, omitempty"`
+	WiredTigerCacheSize string              `json:"wiredTigerCacheSize,omitempty"`
+	BindIp				string    			`json:"bindIp",omitempty`
+	SmallFiles			bool				`json:"smallfiles",omitempty`
+	Noprealloc			bool				`json:"noprealloc",omitempty`
+	Resources           MongoResources      `json:"resources,omitempty"`
+	Command             []string            `json:"command,omitempty"`
+	Storage             MongoStorage        `json:"storage,omitempty"`
+	Tolerations         []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // MongoResources sets the limits and requests for a container

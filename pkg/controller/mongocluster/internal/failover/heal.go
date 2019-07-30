@@ -1,12 +1,12 @@
 package failover
 
 import (
-	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
-	"github.smartx.com/mongo-operator/pkg/service/mongo/replicaset"
-	"github.smartx.com/mongo-operator/pkg/service/mongo"
+	"github.com/globalsign/mgo"
 	"github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	"github.smartx.com/mongo-operator/pkg/constants"
-	"github.com/globalsign/mgo"
+	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
+	"github.smartx.com/mongo-operator/pkg/service/mongo"
+	"github.smartx.com/mongo-operator/pkg/service/mongo/replicaset"
 )
 
 type MongoClusterFailoverHealer struct {
@@ -19,15 +19,19 @@ func NewMongoClusterFailoverHealer(k8sService k8s.Services) *MongoClusterFailove
 	}
 }
 
+func getReplsetTags(mc *v1alpha1.MongoCluster) map[string]string {
+
+	return map[string]string{
+		"app.kubernetes.io/managed-by": "mongo-operator",
+		"cluster":                      mc.Name,
+	}
+}
+
 // MongoReplSetInitiate create mongo replset cluster.
 func (h *MongoClusterFailoverHealer) MongoReplSetInitiate(
 	mc *v1alpha1.MongoCluster, master string, members ...string) error {
 
-	var replSetLabels = map[string]string{
-		"app.kubernetes.io/managed-by": "mongo-operator",
-		"cluster": mc.Name,
-	}
-
+	replSetLabels := getReplsetTags(mc)
 	mongoClient := mongo.NewClient(master)
 	mgoSession, err := mongoClient.DialDirect()
 	defer mgoSession.Close()
@@ -41,16 +45,22 @@ func (h *MongoClusterFailoverHealer) MongoReplSetInitiate(
 	}
 	// add pods to cluster.
 	if err := mongoReplsetAddMemebers(mgoSession,
-		replSetLabels, members...); err !=  nil {
+		replSetLabels, members...); err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func(h *MongoClusterFailoverHealer) MongoReplSetAdd(mc *v1alpha1.
-	MongoCluster, tags map[string]string, members ...string) error {
-	return nil
+func (h *MongoClusterFailoverHealer) MongoReplSetAdd(mc *v1alpha1.
+	MongoCluster, clusterAddr string, members ...string) error {
+	replSetLabels := getReplsetTags(mc)
+	mongoClient := mongo.NewClient(clusterAddr)
+	mgoSession, err := mongoClient.Dial()
+	defer mgoSession.Close()
+	if err != nil {
+		return err
+	}
+	return mongoReplsetAddMemebers(mgoSession, replSetLabels, members...)
 }
 
 func mongoReplsetAddMemebers(session *mgo.Session, tags map[string]string,
@@ -59,10 +69,10 @@ func mongoReplsetAddMemebers(session *mgo.Session, tags map[string]string,
 	defer s.Close()
 
 	members := make([]replicaset.Member, 0, len(member))
-	for _, m:= range member {
+	for _, m := range member {
 		members = append(members, replicaset.Member{
 			Address: m,
-			Tags: tags,
+			Tags:    tags,
 		})
 	}
 	replicaset.Add(s, members...)

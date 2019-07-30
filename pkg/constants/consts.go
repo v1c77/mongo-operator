@@ -1,13 +1,13 @@
 package constants
 
-const (
-	AppLabel                     = "mongo-operator"
-	MongoName                    = "mongo"
-	MongoPort					 = 27017
-	MongoPortName			     = "mongo"
-	MCRoleName                   = "mongo"
-	GraceTime              		 = 15
-	MongoStorageVolumeName       = "mongo-persistent-storage"
-	MongoReplSetName			 = "rs0"
 
+const (
+	AppLabel               = "mongo-operator"
+	MongoName              = "mongo"
+	MongoPort              = 27017
+	MongoPortName          = "mongo"
+	MCRoleName             = "mongo"
+	GraceTime              = 15
+	MongoStorageVolumeName = "mongo-persistent-storage"
+	MongoReplSetName       = "rs0"
 )
