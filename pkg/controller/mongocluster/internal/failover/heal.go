@@ -3,7 +3,6 @@ package failover
 import (
 	"github.com/globalsign/mgo"
 	"github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
-	"github.smartx.com/mongo-operator/pkg/constants"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"github.smartx.com/mongo-operator/pkg/service/mongo"
 	"github.smartx.com/mongo-operator/pkg/service/mongo/replicaset"
@@ -39,7 +38,7 @@ func (h *MongoClusterFailoverHealer) MongoReplSetInitiate(
 		return err
 	}
 	if err := replicaset.Initiate(mgoSession, master,
-		constants.MongoReplSetName,
+		mc.Spec.Mongo.ReplSet,
 		replSetLabels); err != nil {
 		return err
 	}

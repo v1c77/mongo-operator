@@ -31,6 +31,7 @@ func (f *MongoClusterFailover) CheckAndHeal(mc *dbv1alpha1.
 	//fLogger := logger.L().WithValues("Request.Namespace", mc.Namespace,
 	//	"Request.Name", mc.Name)
 	// TODO(yuhua) some pre-check
+	// check 网络 是否连通
 	// TODO(yuhua) check pods status. pod 需要全部启动并且获取到 ip.
 	// TODO check if all the pods health. and then do the init.
 	// pod 数量需要与 spec.Replicas 一致。

@@ -69,7 +69,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		&corev1.Service{},
 		&corev1.ConfigMap{},   // TODO ConfigMap send mongoCluster config.
 		&appsv1.StatefulSet{}, // TODO STS hold all mongodb pod.
-		&appsv1.Deployment{},  // TODO ==DEPRECATED==
 		&corev1.Pod{},         // TODO pod add.
 	}
 
@@ -102,7 +101,6 @@ type ReconcileMongoCluster struct {
 
 // Reconcile reads that state of the cluster for a MongoCluster object and makes changes based on the state read
 // and what is in the MongoCluster.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.Result, error) {
@@ -124,10 +122,11 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 		reqLogger.Info("some unknown error happened, retrying...")
 		return reconcile.Result{}, err
 	}
-
+	// set default values
 	r.scheme.Default(mc)
 	mc.SetDefaults()
 
+	// TODO vici test Scala replset
 	reqLogger.Info("debug ingo",
 		"set number", mc.Spec.Mongo.Replicas)
 
@@ -136,7 +135,7 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 	syncers := []syncer.Interface{
 		objsyncer.NewMongoServiceSyncer(mc, r.client, r.scheme),
 		objsyncer.NewMongoStatefulSetSyncer(mc, r.client, r.scheme),
-		// TODO(vici) configMap to support mongo replica set.
+		// FIXME(vici) mongo container also support  configmap?
 		//objsyncer.NewMongoConfigMap(mc, r.client, r.scheme),
 	}
 

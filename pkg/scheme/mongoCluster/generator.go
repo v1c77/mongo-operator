@@ -45,21 +45,30 @@ func GenerateMCService(mc *dbv1alpha1.MongoCluster,
 
 // getMongoCommand generate mongo start command from `MongoCluster.Spec`
 func getMongoCommand(mc *dbv1alpha1.MongoCluster) []string {
+	mc.SetDefaults() // idempotent
+	commands := []string{"mongod"}
 
-	if len(mc.Spec.Mongo.Command) > 0 {
-		return mc.Spec.Mongo.Command
+	// wiredTigerCacheSize
+	commands = append(commands,
+		"--wiredTigerCacheSizeGB", mc.Spec.Mongo.WiredTigerCacheSize)
+
+	// bindIp
+	commands = append(commands,
+		"--bind_ip", mc.Spec.Mongo.BindIp)
+
+	// replSet
+	commands = append(commands,
+		"--replSet", mc.Spec.Mongo.ReplSet)
+
+	if mc.Spec.Mongo.SmallFiles {
+		commands = append(commands, "--smallfiles")
 	}
-	return []string{
-		"mongod",
-		"--wiredTigerCacheSizeGB",
-		"0.25",
-		"--bind_ip",
-		"0.0.0.0",
-		"--replSet",
-		constants.MongoReplSetName,
-		"--smallfiles",
-		"--noprealloc",
+
+	if mc.Spec.Mongo.Noprealloc {
+		commands = append(commands, "--noprealloc")
 	}
+
+	return commands
 }
 
 // getMCResources
@@ -70,11 +79,11 @@ func getMCResources(spec dbv1alpha1.MongoClusterSpec) corev1.ResourceRequirement
 	}
 }
 
-func getLimits(resources dbv1alpha1.MongoResources) corev1.ResourceList {
+func getLimits(resources *dbv1alpha1.MongoResources) corev1.ResourceList {
 	return generateResourceList(resources.Limits.CPU, resources.Limits.Memory)
 }
 
-func getRequests(resources dbv1alpha1.MongoResources) corev1.ResourceList {
+func getRequests(resources *dbv1alpha1.MongoResources) corev1.ResourceList {
 	return generateResourceList(resources.Requests.CPU, resources.Requests.Memory)
 }
 
@@ -193,28 +202,9 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 							},
 							VolumeMounts: volumeMounts,
 							Command:      MongoCommand,
-							//LivenessProbe: &corev1.Probe{
-							//	InitialDelaySeconds: constants.GraceTime,
-							//	TimeoutSeconds:      5,
-							//	Handler: corev1.Handler{
-							//		Exec: &corev1.ExecAction{
-							//			Command: []string{
-							//				"sh",
-							//				"-c",
-							//				"mongo --evel 'db.runCommand({ping:1})'",
-							//			},
-							//		},
-							//	},
-							//},
+							// TODO(yuhua): LivenessProbe
 							Resources: resources,
-							Lifecycle: &corev1.Lifecycle{
-								PreStop: &corev1.Handler{
-									Exec: &corev1.ExecAction{
-										Command: []string{"/bin/sh", "-c",
-											"echo  'TODO some preStop script.'"},
-									},
-								},
-							},
+							// TODO(yuhua): Lifecycle
 						},
 					},
 				},

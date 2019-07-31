@@ -28,9 +28,8 @@ type MongoSettings struct {
 	BindIp				string    			`json:"bindIp",omitempty`
 	SmallFiles			bool				`json:"smallfiles",omitempty`
 	Noprealloc			bool				`json:"noprealloc",omitempty`
-	Resources           MongoResources      `json:"resources,omitempty"`
-	Command             []string            `json:"command,omitempty"`
-	Storage             MongoStorage        `json:"storage,omitempty"`
+	Resources           *MongoResources      `json:"resources,omitempty"`
+	Storage             MongoStorage        `json:"storage"`
 	Tolerations         []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
