@@ -25,7 +25,7 @@ push:
 run: export OPERATOR_NAME  = mongo-operator
 
 run:
-	operator-sdk up local --namespace=default
+	operator-sdk up local --namespace=default --operator-flags "--zap-devel=true"
 
 .PHONY: test
 test:

@@ -47,6 +47,7 @@ type podReplicaStatus struct {
 	Status    *replicaset.Status
 	Err       error
 	IsReplica bool
+	IsMaster  *replicaset.IsMasterResults
 }
 
 // checkMongoPodsStatus check all alive mongo instance status
@@ -78,10 +79,12 @@ func (c *MongoClusterFailoverChecker) GetMongoPodsStatus(mc *dbv1alpha1.
 				continue
 			}
 		}
+		isMaster, _ := replicaset.IsMaster(mgoSession)
 		podsMap[url] = podReplicaStatus{
 			Status:    status,
 			Err:       err,
 			IsReplica: true,
+			IsMaster:  isMaster,
 		}
 
 		mgoSession.Close()

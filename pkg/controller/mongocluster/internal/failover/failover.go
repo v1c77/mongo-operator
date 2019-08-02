@@ -1,6 +1,7 @@
 package failover
 
 import (
+	"fmt"
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"github.smartx.com/mongo-operator/pkg/utils"
@@ -28,8 +29,6 @@ func NewMongoClusterFailover(k8sService k8s.Services) *MongoClusterFailover {
 func (f *MongoClusterFailover) CheckAndHeal(mc *dbv1alpha1.
 	MongoCluster) error {
 
-	//fLogger := logger.L().WithValues("Request.Namespace", mc.Namespace,
-	//	"Request.Name", mc.Name)
 	// TODO(yuhua) some pre-check
 	// check 网络 是否连通
 	// TODO(yuhua) check pods status. pod 需要全部启动并且获取到 ip.
@@ -48,8 +47,7 @@ func (f *MongoClusterFailover) CheckAndHeal(mc *dbv1alpha1.
 	}
 
 	// TODO 其他状态待定。
-
-	// - check pod, service, network, mongo replicaset..
+	// - check pod, service, network, mongo replicaSet..
 
 	return nil
 }
@@ -59,41 +57,78 @@ func (f *MongoClusterFailover) checkAndHealMongoReplSet(
 	mc *dbv1alpha1.MongoCluster) error {
 
 	podStatus := f.checker.GetMongoPodsStatus(mc)
-	var healthNode []string
-	var newNode []string
-	var issueNode []string
+	healthNode := make(map[string]podReplicaStatus)
+	newNode := make(map[string]podReplicaStatus)
+	issueNode := make(map[string]podReplicaStatus)
 	for url, podStatus := range podStatus {
 		// init mongo replicaset.
 		if podStatus.Err != nil {
 			if strings.Contains(podStatus.Err.Error(),
 				"no replset config has been received") {
-				newNode = append(newNode, url)
+				newNode[url] = podStatus
 			} else {
-				// other issue like pod restart.
-				issueNode = append(issueNode, url)
+				// + pod  mongo daemon initialing.
+				// + pod restart
+				// + mongo rs status recovering ??
+				// + TODO other issue status.
+				issueNode[url] = podStatus
 			}
 		} else {
-			healthNode = append(healthNode, url)
+			healthNode[url] = podStatus
 		}
 	}
+	logger.Debug("all node info",
+		"healthNode", GetMapStringKeys(healthNode),
+		"newNode", GetMapStringKeys(newNode),
+		"issueNode", GetMapStringKeys(issueNode))
 
-	logger.Info("", "healthNode", healthNode, "newNode", newNode,
-		"issueNode", issueNode)
-	// do initiate in new node.
+	// ---- 1. init  cluster
+	// TODO to make sure the cluster config contains odd members .
 	if len(newNode) == len(podStatus) && len(newNode) == int(mc.Spec.Mongo.
 		Replicas) {
-		return f.healer.MongoReplSetInitiate(mc, newNode[0], newNode[1:]...)
-	}
-
-	if len(newNode) > 0 {
-		// TODO get not recover mode health pod
-		if err := f.healer.MongoReplSetAdd(mc, healthNode[0],
-			newNode...); err != nil {
+		nodes, err := getMapStringKeys(newNode)
+		if err != nil {
 			return err
 		}
-	}
-	//TODO try to heal other mongo pod.
-	// fixme if we should handle long time recover mode.
 
+		logger.Debug("init cluster",
+			"master", nodes[0],
+			"members", nodes[1:])
+		return f.healer.MongoReplSetInitiate(mc, nodes[0], nodes[1:]...)
+	}
+
+	// ---- 2. handle scala, newly added node
+	// TODO to make sure the cluster config contains odd members .
+	//if len(newNode) > 0  && len(newNode) % 2 == 0 {
+	if len(newNode) > 0 {
+		// TODO get not recover mode health pod
+		var master string
+		for url, node := range healthNode {
+			if node.IsMaster != nil && node.IsMaster.IsMaster {
+				master = url
+				break
+			}
+		}
+		if len(master) > 0 { // primary must exist.
+
+			nodes, err := getMapStringKeys(newNode)
+			if err != err {
+				return err
+			}
+			logger.Debug("add new node",
+				"master", master,
+				"new node", newNode)
+			return f.healer.MongoReplSetAdd(mc, master, nodes...)
+		} else {
+			return fmt.Errorf("no health master node")
+		}
+	}
+	// TODO reduce node.
+	// TODO try to heal other mongo pod.
+	// fixme if we should handle long time recover mode.
+	logger.Debug("TODO situation ignored.",
+		"healthNode", GetMapStringKeys(healthNode),
+		"newNode", GetMapStringKeys(newNode),
+		"issueNode", GetMapStringKeys(issueNode))
 	return nil
 }

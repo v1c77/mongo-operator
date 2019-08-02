@@ -260,7 +260,7 @@ func doAttemptInitiate(monotonicSession *mgo.Session, cfg []Config) error {
 // See http://docs.mongodb.org/manual/reference/method/rs.initiate/ for more
 // details.
 func Initiate(session *mgo.Session, address, name string, tags map[string]string) error {
-	logger.Info("Try to init a Mongo Cluster.")
+	logger.Info("init a Mongo Cluster.", "address", address)
 	monotonicSession := session.Clone()
 	defer monotonicSession.Close()
 	monotonicSession.SetMode(mgo.Monotonic, true)
@@ -451,6 +451,26 @@ outerLoop:
 		config.Members = append(config.Members, newMember)
 	}
 	return applyReplSetConfig("Add", session, &oldconfig, config)
+}
+
+// Remove removes members with the given addresses from the replica set. It is
+// not an error to remove addresses of non-existent replica set members.
+func Remove(session *mgo.Session, addrs ...string) error {
+	config, err := CurrentConfig(session)
+	if err != nil {
+		return err
+	}
+	oldconfig := *config
+	config.Version++
+	for _, rem := range addrs {
+		for n, repl := range config.Members {
+			if repl.Address == rem {
+				config.Members = append(config.Members[:n], config.Members[n+1:]...)
+				break
+			}
+		}
+	}
+	return applyReplSetConfig("Remove", session, &oldconfig, config)
 }
 
 // Config reports information about the configuration of a given mongo node

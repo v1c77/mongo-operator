@@ -127,14 +127,14 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 	mc.SetDefaults()
 
 	// TODO vici test Scala replset
-	reqLogger.Info("debug ingo",
+	reqLogger.V(1).Info("debug info",
 		"set number", mc.Spec.Mongo.Replicas)
 
 	// use stage/syncer to manage resource changes.
 	// each type of resources managed by MC has its own syncer
 	syncers := []syncer.Interface{
-		objsyncer.NewMongoServiceSyncer(mc, r.client, r.scheme),
 		objsyncer.NewMongoStatefulSetSyncer(mc, r.client, r.scheme),
+		objsyncer.NewMongoServiceSyncer(mc, r.client, r.scheme), // only for create
 		// FIXME(vici) mongo container also support  configmap?
 		//objsyncer.NewMongoConfigMap(mc, r.client, r.scheme),
 	}
@@ -144,7 +144,6 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	// TODO(vici) something about mongo ops failover.... add node. delete node.
 	if err = r.failover.CheckAndHeal(mc); err != nil {
 		return reconcile.Result{}, err
 	}

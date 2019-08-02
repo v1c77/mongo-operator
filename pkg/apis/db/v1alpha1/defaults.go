@@ -4,15 +4,14 @@ package v1alpha1
 import corev1 "k8s.io/api/core/v1"
 
 const (
-	DefaultMongoReplica = 3
-	DefaultMongoImage   = "mongo:4.0.11"
-	DefaultImagePullPolicy = corev1.PullIfNotPresent
+	DefaultMongoReplica        = 3
+	DefaultMongoImage          = "mongo:4.0.11"
+	DefaultImagePullPolicy     = corev1.PullIfNotPresent
 	DefaultWiredTigerCacheSize = "0.25"
-	DefaultBindIp = "0.0.0.0"
-	DefaultReplSet = "rs0"
-	DefaultRequestCpu = "1"
-	DefaultRequestRam = "3G"
-
+	DefaultBindIp              = "0.0.0.0"
+	DefaultReplSet             = "rs0"
+	DefaultRequestCpu          = "1"
+	DefaultRequestRam          = "3G"
 )
 
 func (in *MongoCluster) SetDefaults() {
@@ -42,8 +41,8 @@ func (in *MongoCluster) SetDefaults() {
 	}
 
 	if in.Spec.Mongo.Resources == nil {
-		in.Spec.Mongo.Resources = &MongoResources{Requests:CPUAndMem{
-			CPU: DefaultRequestCpu,
+		in.Spec.Mongo.Resources = &MongoResources{Requests: CPUAndMem{
+			CPU:    DefaultRequestCpu,
 			Memory: DefaultRequestRam,
 		}}
 	}

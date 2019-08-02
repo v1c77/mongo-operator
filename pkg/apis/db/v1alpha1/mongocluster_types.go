@@ -25,10 +25,10 @@ type MongoSettings struct {
 	Replicas            int32               `json:"replicas,omitempty"`
 	ReplSet             string              `json:"replSet, omitempty"`
 	WiredTigerCacheSize string              `json:"wiredTigerCacheSize,omitempty"`
-	BindIp				string    			`json:"bindIp",omitempty`
-	SmallFiles			bool				`json:"smallfiles",omitempty`
-	Noprealloc			bool				`json:"noprealloc",omitempty`
-	Resources           *MongoResources      `json:"resources,omitempty"`
+	BindIp              string              `json:"bindIp",omitempty`
+	SmallFiles          bool                `json:"smallfiles",omitempty`
+	Noprealloc          bool                `json:"noprealloc",omitempty`
+	Resources           *MongoResources     `json:"resources,omitempty"`
 	Storage             MongoStorage        `json:"storage"`
 	Tolerations         []corev1.Toleration `json:"tolerations,omitempty"`
 }

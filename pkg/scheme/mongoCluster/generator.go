@@ -163,9 +163,6 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 	labels = utils.MergeLabels(labels, utils.GetLabels(constants.MCRoleName,
 		mc.Name))
 	volumeMounts := getMCVolumeMounts(mc)
-	//volumes := getMongoVolumes(mc)
-	//TODO(yuhua) fix sync scale
-	// mc.Spec.Mongo.Replicas = 4
 	ss := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,      // {MC.Name}-mongo
@@ -176,7 +173,7 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 			ServiceName: name,
 			Replicas:    &mc.Spec.Mongo.Replicas,
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
-				Type: "RollingUpdate",
+				Type: constants.UpdatePolicy,
 			},
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
@@ -190,12 +187,12 @@ func GenerateMCStatefulSet(mc *dbv1alpha1.MongoCluster,
 					TerminationGracePeriodSeconds: getGraceTime(),
 					Containers: []corev1.Container{
 						{
-							Name:            "mongo",
+							Name:            constants.MongoName,
 							Image:           mc.Spec.Mongo.Image,
 							ImagePullPolicy: mc.Spec.Mongo.ImagePullPolicy,
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          "mongo",
+									Name:          constants.MongoName,
 									ContainerPort: 27017,
 									Protocol:      corev1.ProtocolTCP,
 								},
