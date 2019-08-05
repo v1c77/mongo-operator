@@ -67,8 +67,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	subResources := []runtime.Object{
 		&corev1.Service{},
-		&corev1.ConfigMap{},   // TODO ConfigMap send mongoCluster config.
-		&appsv1.StatefulSet{}, // TODO STS hold all mongodb pod.
+		&corev1.ConfigMap{},
+		&appsv1.StatefulSet{},
 		&corev1.Pod{},         // TODO pod add.
 	}
 
@@ -126,17 +126,11 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 	r.scheme.Default(mc)
 	mc.SetDefaults()
 
-	// TODO vici test Scala replset
-	reqLogger.V(1).Info("debug info",
-		"set number", mc.Spec.Mongo.Replicas)
-
-	// use stage/syncer to manage resource changes.
 	// each type of resources managed by MC has its own syncer
 	syncers := []syncer.Interface{
 		objsyncer.NewMongoStatefulSetSyncer(mc, r.client, r.scheme),
 		objsyncer.NewMongoServiceSyncer(mc, r.client, r.scheme), // only for create
-		// FIXME(vici) mongo container also support  configmap?
-		//objsyncer.NewMongoConfigMap(mc, r.client, r.scheme),
+		objsyncer.NewMongoConfigMap(mc, r.client, r.scheme),
 	}
 
 	if err = r.sync(syncers); err != nil {

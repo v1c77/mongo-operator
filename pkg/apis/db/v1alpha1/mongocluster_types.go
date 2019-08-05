@@ -23,11 +23,11 @@ type MongoSettings struct {
 	Image               string              `json:"image,omitempty"`
 	ImagePullPolicy     corev1.PullPolicy   `json:"imagePullPolicy,omitempty"`
 	Replicas            int32               `json:"replicas,omitempty"`
-	ReplSet             string              `json:"replSet, omitempty"`
+	ReplSet             string              `json:"replSet,omitempty"`
 	WiredTigerCacheSize string              `json:"wiredTigerCacheSize,omitempty"`
-	BindIp              string              `json:"bindIp",omitempty`
-	SmallFiles          bool                `json:"smallfiles",omitempty`
-	Noprealloc          bool                `json:"noprealloc",omitempty`
+	BindIp              string              `json:"bindIp,omitempty"`
+	SmallFiles          bool                `json:"smallfiles,omitempty"`
+	Noprealloc          bool                `json:"noprealloc,omitempty"`
 	Resources           *MongoResources     `json:"resources,omitempty"`
 	Storage             MongoStorage        `json:"storage"`
 	Tolerations         []corev1.Toleration `json:"tolerations,omitempty"`
@@ -57,8 +57,9 @@ type MongoClusterStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
 	// +optional
-	ObservedGeneration *int64 `json:"observedGeneration,omitempty" protobuf:"varint,1,opt,name=observedGeneration"`
-	Replicas           int32  `json:"replicas" protobuf:"varint,2,opt,name=replicas"`
+	ObservedGeneration *int64   `json:"observedGeneration,omitempty" protobuf:"varint,1,opt,name=observedGeneration"`
+	Replicas           int32    `json:"replicas" protobuf:"varint,2,opt,name=replicas"`
+	Nodes              []string `json:"nodes,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

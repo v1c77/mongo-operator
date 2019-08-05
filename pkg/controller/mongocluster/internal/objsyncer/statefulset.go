@@ -4,14 +4,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"fmt"
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
+	"github.smartx.com/mongo-operator/pkg/constants"
 	"github.smartx.com/mongo-operator/pkg/scheme/mongoCluster"
 	"github.smartx.com/mongo-operator/pkg/staging/syncer"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"reflect"
-	"github.smartx.com/mongo-operator/pkg/constants"
-	"fmt"
 )
 
 // NewMongoStatefulSetSyncer returns a new sync.
@@ -32,9 +32,9 @@ func NewMongoStatefulSetSyncer(mc *dbv1alpha1.MongoCluster, c client.Client,
 }
 
 type mongoPod struct {
-	 fsts *appsv1.StatefulSet
-	 cIdx int
-	 p corev1.Container
+	fsts *appsv1.StatefulSet
+	cIdx int
+	p    corev1.Container
 }
 
 func NewMongoPodFromSts(sts *appsv1.StatefulSet) *mongoPod {
@@ -43,7 +43,7 @@ func NewMongoPodFromSts(sts *appsv1.StatefulSet) *mongoPod {
 	}
 }
 
-func (p *mongoPod) getMongoPod()  error {
+func (p *mongoPod) getMongoPod() error {
 	for idx, c := range p.fsts.Spec.Template.Spec.Containers {
 		if c.Name == constants.MongoName {
 			p.cIdx = idx
@@ -104,5 +104,3 @@ func syncReplica(news *appsv1.StatefulSet, exist *appsv1.StatefulSet) {
 		exist.Spec.Replicas = news.Spec.Replicas
 	}
 }
-
-

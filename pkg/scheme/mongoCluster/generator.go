@@ -3,20 +3,23 @@ package mongoCluster
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	//policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//"k8s.io/apimachinery/pkg/util/intstr"
 
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	"github.smartx.com/mongo-operator/pkg/constants"
 	"github.smartx.com/mongo-operator/pkg/utils"
-	//"github.com/go-openapi/spec"
+	"fmt"
+	"strings"
 )
+
+func GetMcServiceName(mc *dbv1alpha1.MongoCluster) string {
+	return utils.GetMCName(mc)
+}
 
 func GenerateMCService(mc *dbv1alpha1.MongoCluster,
 	labels map[string]string) *corev1.Service {
-	name := utils.GetMCName(mc)
+	name := GetMcServiceName(mc)
 	namespace := mc.Namespace
 
 	labels = utils.MergeLabels(labels, utils.GetLabels(constants.
@@ -41,6 +44,37 @@ func GenerateMCService(mc *dbv1alpha1.MongoCluster,
 			Selector: labels,
 		},
 	}
+}
+
+func GetPodsFQDN(mc *dbv1alpha1.MongoCluster) []string {
+	podNames := utils.GetStatefulsetPodNames(GenerateMCStatefulSet(mc,
+		map[string]string{}))
+
+	seviceFQDN := utils.GetServiceFQDN(GenerateMCService(mc,
+		map[string]string{}))
+
+	podsFQDN := make([]string, 0, len(podNames))
+	for _, podName := range podNames {
+		podsFQDN = append(podsFQDN, fmt.Sprintf("%s.%s", podName, seviceFQDN))
+	}
+	return podsFQDN
+}
+
+func GetMCConfigMapName(mc *dbv1alpha1.MongoCluster) string {
+	return fmt.Sprintf("%s-conf", utils.GetMCName(mc))
+}
+func GenerateConfigMap(mc *dbv1alpha1.MongoCluster) *corev1.ConfigMap {
+	podsFQDN := GetPodsFQDN(mc)
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetMCConfigMapName(mc),
+			Namespace: mc.Namespace,
+		},
+		Data: map[string]string{
+			"cluster.mongo": strings.Join(podsFQDN, ","),
+		},
+	}
+
 }
 
 // getMongoCommand generate mongo start command from `MongoCluster.Spec`

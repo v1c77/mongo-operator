@@ -7,6 +7,6 @@ const (
 	MongoPortName          = "mongo"
 	MCRoleName             = "mongo"
 	GraceTime              = 15
-	UpdatePolicy		   = "RollingUpdate"
+	UpdatePolicy           = "RollingUpdate"
 	MongoStorageVolumeName = "mongo-persistent-storage"
 )
