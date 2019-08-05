@@ -25,11 +25,6 @@ import (
 
 var log = logf.Log.WithName("controller_mongocluster")
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
 // Add creates a new MongoCluster Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -62,14 +57,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(vici) change Watch for changes to the resources that owned by the
 	// primary resource
-
 	subResources := []runtime.Object{
 		&corev1.Service{},
 		&corev1.ConfigMap{},
 		&appsv1.StatefulSet{},
-		&corev1.Pod{},         // TODO pod add.
+		&corev1.Pod{},
 	}
 
 	for _, subResource := range subResources {
@@ -142,6 +135,9 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
+	// update Mc.Status
+	r.updateStatus(mc)
+
 	reqLogger.Info("reconcile done.")
 	return reconcile.Result{}, nil
 }
@@ -152,5 +148,12 @@ func (r *ReconcileMongoCluster) sync(syncers []syncer.Interface) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (r *ReconcileMongoCluster) updateStatus(mc *dbv1alpha1.MongoCluster) error {
+	status := r.failover.GetMCStatus(mc)
+	mc.Status = status
+	r.client.Status().Update(context.TODO(), mc)
 	return nil
 }

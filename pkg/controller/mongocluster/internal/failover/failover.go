@@ -3,9 +3,11 @@ package failover
 import (
 	"fmt"
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
+	"github.smartx.com/mongo-operator/pkg/scheme/mongoCluster"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"github.smartx.com/mongo-operator/pkg/utils"
 	"strings"
+	"time"
 )
 
 var logger = utils.NewLogger("mongocluster.failover")
@@ -131,4 +133,37 @@ func (f *MongoClusterFailover) checkAndHealMongoReplSet(
 		"newNode", GetMapStringKeys(newNode),
 		"issueNode", GetMapStringKeys(issueNode))
 	return nil
+}
+
+// GetMCStatus try to get mongo cluster status from mongo client.
+func (f *MongoClusterFailover) GetMCStatus(mc *dbv1alpha1.
+	MongoCluster) dbv1alpha1.MongoClusterStatus {
+	_, podsStatus, masterStatus, IsReady,
+		_ := f.checker.GetMongoStatus(mc)
+	//logger.Debug("get mc Status",
+	//	"curr", currentStatus,
+	//		"ps",podsStatus,
+	//	"isReady", IsReady)
+
+	var healthPods []string
+	var issuePods []string
+	for url, podStatus := range podsStatus {
+		if podStatus.IsReplica && podStatus.Err == nil {
+			healthPods = append(healthPods, url)
+		} else {
+			issuePods = append(issuePods, url)
+		}
+	}
+
+	return dbv1alpha1.MongoClusterStatus{
+		UpdateAt:      time.Now().Format("1994-07-01 01:12:32"),
+		Replicas:      mc.Spec.Mongo.Replicas,
+		ServiceName:   mongoCluster.GetMcServiceName(mc),
+		ConfigMapName: mongoCluster.GetMCConfigMapName(mc),
+		HealthMembers: healthPods,
+		IssueMembers:  issuePods,
+		PodsFQDN:      mongoCluster.GetPodsFQDN(mc),
+		PrimaryFQDN:   masterStatus.Address,
+		IsReady:       IsReady,
+	}
 }

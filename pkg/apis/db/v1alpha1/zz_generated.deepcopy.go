@@ -111,6 +111,21 @@ func (in *MongoClusterStatus) DeepCopyInto(out *MongoClusterStatus) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.PodsFQDN != nil {
+		in, out := &in.PodsFQDN, &out.PodsFQDN
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.HealthMembers != nil {
+		in, out := &in.HealthMembers, &out.HealthMembers
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.IssueMembers != nil {
+		in, out := &in.IssueMembers, &out.IssueMembers
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

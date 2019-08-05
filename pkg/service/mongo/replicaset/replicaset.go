@@ -612,9 +612,9 @@ func IsReady(session *mgo.Session) (bool, error) {
 }
 
 // Fixme we use re reconcile logical, try not to block operator.
-//// WaitUntilReady waits until all members of the replicaset are ready.
-//// It will retry every 10 seconds until the timeout is reached. Dropped
-//// connections will trigger a reconnect.
+// WaitUntilReady waits until all members of the replicaset are ready.
+// It will retry every 10 seconds until the timeout is reached. Dropped
+// connections will trigger a reconnect.
 //func WaitUntilReady(session *mgo.Session, timeout int) error {
 //	attempts := utils.AttemptStrategy{
 //		Delay: 10 * time.Second,

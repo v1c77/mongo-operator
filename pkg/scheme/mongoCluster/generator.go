@@ -6,10 +6,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"fmt"
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	"github.smartx.com/mongo-operator/pkg/constants"
 	"github.smartx.com/mongo-operator/pkg/utils"
-	"fmt"
 	"strings"
 )
 

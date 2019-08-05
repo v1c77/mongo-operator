@@ -81,16 +81,20 @@ func syncMongoPod(new *appsv1.StatefulSet, exist *appsv1.StatefulSet) {
 	// Resource
 	if !reflect.DeepEqual(newMongoPod.Pod().Resources, oldMongoPod.Pod().Resources) {
 		oldMongoPod.Pod().Resources = newMongoPod.Pod().Resources
-	}
-	// cmd
-	if !reflect.DeepEqual(newMongoPod.Pod().Command, oldMongoPod.Pod().Command) {
-		oldMongoPod.Pod().Command = newMongoPod.Pod().Command
+		// clean
+		if oldMongoPod.Pod().Resources.Limits == nil || len(oldMongoPod.Pod().
+			Resources.Limits) == 0 {
+			oldMongoPod.Pod().Resources.Limits = nil
+		}
+		if oldMongoPod.Pod().Resources.Requests == nil || len(oldMongoPod.Pod().
+			Resources.Requests) == 0 {
+			oldMongoPod.Pod().Resources.Requests = nil
+		}
 	}
 	// command
 	if !reflect.DeepEqual(newMongoPod.Pod().Command, oldMongoPod.Pod().Command) {
 		oldMongoPod.Pod().Command = newMongoPod.Pod().Command
 	}
-
 	oldMongoPod.Commit()
 
 }
