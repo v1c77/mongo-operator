@@ -39,3 +39,7 @@ func (l *LogHelper) Info(msg string, keysAndValues ...interface{}) {
 func (l *LogHelper) Error(err error, msg string, keysAndValues ...interface{}) {
 	l.l.Error(err, msg, keysAndValues...)
 }
+
+func (l *LogHelper) Debug(msg string, keysAndValues ...interface{}) {
+	l.l.V(1).Info(msg, keysAndValues...)
+}

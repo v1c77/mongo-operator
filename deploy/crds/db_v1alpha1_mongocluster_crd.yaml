@@ -9,6 +9,9 @@ spec:
     listKind: MongoClusterList
     plural: mongoclusters
     singular: mongocluster
+    shortNames:
+    - mc
+    - sm
   scope: Namespaced
   subresources:
     status: {}

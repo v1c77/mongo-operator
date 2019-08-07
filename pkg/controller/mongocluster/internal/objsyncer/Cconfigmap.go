@@ -11,9 +11,9 @@ import (
 
 // NewMongoServiceSyncer returns a new sync.
 // Interface for reconciling Mongo headless service
-func NewMongoServiceSyncer(mc *dbv1alpha1.MongoCluster, c client.Client,
+func NewMongoConfigMap(mc *dbv1alpha1.MongoCluster, c client.Client,
 	scheme *runtime.Scheme) syncer.Interface {
-	statefulSet := mongoCluster.GenerateMCService(mc, controllerLabels)
-	return syncer.NewObjectSyncer("MongoService", mc, statefulSet, c,
+	cm := mongoCluster.GenerateConfigMap(mc)
+	return syncer.NewObjectSyncer("MongoConfigMap", mc, cm, c,
 		scheme, noFunc)
 }

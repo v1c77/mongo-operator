@@ -5,9 +5,9 @@ import (
 	"github.com/globalsign/mgo"
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
 	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
+	"github.smartx.com/mongo-operator/pkg/service/mongo"
 	"github.smartx.com/mongo-operator/pkg/service/mongo/replicaset"
 	"github.smartx.com/mongo-operator/pkg/utils"
-	"github.smartx.com/mongo-operator/pkg/service/mongo"
 	"strings"
 )
 
@@ -31,6 +31,36 @@ func (c *MongoClusterFailoverChecker) CheckReplSetStatus(session *mgo.
 	return replicaset.CurrentStatus(monotonicSession)
 }
 
+//GetMongoStatus get mongo status.
+func (c *MongoClusterFailoverChecker) GetMongoStatus(mc *dbv1alpha1.
+	MongoCluster) (currentStatus string,
+	podsStatus map[string]podReplicaStatus,
+	masterStatus *replicaset.IsMasterResults, IsReady bool,
+	err error) {
+	podsStatus = c.GetMongoPodsStatus(mc)
+
+	var masterUrl string
+	for _, podStatus := range podsStatus {
+		if podStatus.IsMaster != nil && podStatus.IsMaster.IsMaster {
+			masterUrl = podStatus.IsMaster.Address
+			masterStatus = podStatus.IsMaster
+			break
+		}
+	}
+	if len(masterUrl) == 0 { // get master
+		return
+	}
+
+	mongoClient := mongo.NewClient(masterUrl)
+	session, err := mongoClient.Dial()
+	defer session.Close()
+	if err != nil {
+		return
+	}
+	IsReady, err = replicaset.IsReady(session)
+	return
+}
+
 func (c *MongoClusterFailoverChecker) GetMembersDNS(mc *dbv1alpha1.
 	MongoCluster) []string {
 	var dnsList []string
@@ -44,15 +74,16 @@ func (c *MongoClusterFailoverChecker) GetMembersDNS(mc *dbv1alpha1.
 }
 
 type podReplicaStatus struct {
-	Status *replicaset.Status
-	Err error
+	Status    *replicaset.Status
+	Err       error
 	IsReplica bool
+	IsMaster  *replicaset.IsMasterResults
 }
 
 // checkMongoPodsStatus check all alive mongo instance status
 func (c *MongoClusterFailoverChecker) GetMongoPodsStatus(mc *dbv1alpha1.
-MongoCluster) map[string]podReplicaStatus {
-	dnsList :=  c.GetMembersDNS(mc)
+	MongoCluster) map[string]podReplicaStatus {
+	dnsList := c.GetMembersDNS(mc)
 	var podsMap = map[string]podReplicaStatus{}
 	for _, url := range dnsList {
 		mongoClient := mongo.NewClient(url)
@@ -60,8 +91,8 @@ MongoCluster) map[string]podReplicaStatus {
 		if err != nil {
 			// mongod not started or network error pods
 			podsMap[url] = podReplicaStatus{
-				Status: nil,
-				Err: err,
+				Status:    nil,
+				Err:       err,
 				IsReplica: false, //ignore this type pods until Dial connected.x
 			}
 			continue
@@ -71,46 +102,25 @@ MongoCluster) map[string]podReplicaStatus {
 			if strings.Contains(err.Error(),
 				"no replset config has been received") {
 				podsMap[url] = podReplicaStatus{
-					Status: status,
-					Err: err,
+					Status:    status,
+					Err:       err,
 					IsReplica: false,
 				}
 				continue
 			}
 		}
+		isMaster, _ := replicaset.IsMaster(mgoSession)
 		podsMap[url] = podReplicaStatus{
-			Status: status,
-			Err: err,
+			Status:    status,
+			Err:       err,
 			IsReplica: true,
+			IsMaster:  isMaster,
 		}
 
 		mgoSession.Close()
 	}
 	return podsMap
 }
-
-
-//func (c *MongoClusterFailoverChecker) MemebersStatus(mc *dbv1alpha1.
-//	MongoCluster) error {
-//		// TODO refactor it !!!
-//		dnsList := c.GetMembersDNS(mc)
-//		url := fmt.Sprintf("%s:%v", dnsList[0], constants.MongoPort)
-//		//url := "10.76.203.198:27017"
-//		logger.Info("use url", "url", url)
-//		Session, err := mgo.Dial(url)
-//		if err != nil {
-//			log.Info("can not get client", "error", err)
-//			return err
-//		}
-//		mgo.Monotonic
-//		err = Session.Ping()
-//		if err != nil {
-//			log.Info("mongod not work or network error", "error", err)
-//			return err
-//		}
-//		log.Info("check random pod status done.")
-//		return nil
-//}
 
 func getMemberHostName(idx int, clusterName, namespace string) string {
 	return fmt.Sprintf("%s-%v.%s.%s.svc.cluster.local", clusterName, idx,

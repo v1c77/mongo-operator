@@ -15,18 +15,22 @@ type MongoClusterSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	Mongo    MongoSettings `json:"mongo,omitempty"`
+	Mongo MongoSettings `json:"mongo,omitempty"`
 }
 
 // MongoSettings define the specification of the mongo cluster
 type MongoSettings struct {
-	Image           string              `json:"image,omitempty"`
-	ImagePullPolicy corev1.PullPolicy   `json:"imagePullPolicy,omitempty"`
-	Replicas        int32               `json:"replicas,omitempty"`
-	Resources       MongoResources      `json:"resources,omitempty"`
-	Command         []string            `json:"command,omitempty"`
-	Storage         MongoStorage        `json:"storage,omitempty"`
-	Tolerations     []corev1.Toleration `json:"tolerations,omitempty"`
+	Image               string              `json:"image,omitempty"`
+	ImagePullPolicy     corev1.PullPolicy   `json:"imagePullPolicy,omitempty"`
+	Replicas            int32               `json:"replicas,omitempty"`
+	ReplSet             string              `json:"replSet,omitempty"`
+	WiredTigerCacheSize string              `json:"wiredTigerCacheSize,omitempty"`
+	BindIp              string              `json:"bindIp,omitempty"`
+	SmallFiles          bool                `json:"smallfiles,omitempty"`
+	Noprealloc          bool                `json:"noprealloc,omitempty"`
+	Resources           *MongoResources     `json:"resources,omitempty"`
+	Storage             MongoStorage        `json:"storage"`
+	Tolerations         []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // MongoResources sets the limits and requests for a container
@@ -53,8 +57,16 @@ type MongoClusterStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
 	// +optional
-	ObservedGeneration *int64 `json:"observedGeneration,omitempty" protobuf:"varint,1,opt,name=observedGeneration"`
-	Replicas           int32  `json:"replicas" protobuf:"varint,2,opt,name=replicas"`
+	ObservedGeneration *int64   `json:"observedGeneration,omitempty" protobuf:"varint,1,opt,name=observedGeneration"`
+	Replicas           int32    `json:"replicas" protobuf:"varint,2,opt,name=replicas"`
+	UpdateAt           string   `json:"updateAt,omitempty"`
+	ServiceName        string   `json:"serviceName,omitempty"`
+	ConfigMapName      string   `json:"configMapName,omitempty"`
+	PodsFQDN           []string `json:"podsFQDN,omitempty"`
+	HealthMembers      []string `json:"healthMembers,omitempty"`
+	IssueMembers       []string `json:"issueMembers,omitempty"`
+	PrimaryFQDN        string   `json:"primaryFQDN,omitempty"`
+	IsReady            bool     `json:"isReady,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

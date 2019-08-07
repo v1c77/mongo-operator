@@ -18,6 +18,7 @@ const mgoDialTimeout = 60 * time.Second
 
 type Client interface {
 	DialDirect() (*mgo.Session, error)
+	Dial() (*mgo.Session, error)
 }
 
 type client struct {

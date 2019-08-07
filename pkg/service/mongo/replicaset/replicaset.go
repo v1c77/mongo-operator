@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.smartx.com/mongo-operator/pkg/utils"
 	"github.com/juju/errors"
+	"github.smartx.com/mongo-operator/pkg/utils"
+	"io"
 	"sort"
 	"strings"
-	"time"
-	"io"
 	"syscall"
+	"time"
 )
 
 var logger = utils.NewLogger("mongocluster.service.mongo.replicaset")
@@ -260,7 +260,7 @@ func doAttemptInitiate(monotonicSession *mgo.Session, cfg []Config) error {
 // See http://docs.mongodb.org/manual/reference/method/rs.initiate/ for more
 // details.
 func Initiate(session *mgo.Session, address, name string, tags map[string]string) error {
-	logger.Info("Try to init a Mongo Cluster.")
+	logger.Info("init a Mongo Cluster.", "address", address)
 	monotonicSession := session.Clone()
 	defer monotonicSession.Close()
 	monotonicSession.SetMode(mgo.Monotonic, true)
@@ -453,6 +453,26 @@ outerLoop:
 	return applyReplSetConfig("Add", session, &oldconfig, config)
 }
 
+// Remove removes members with the given addresses from the replica set. It is
+// not an error to remove addresses of non-existent replica set members.
+func Remove(session *mgo.Session, addrs ...string) error {
+	config, err := CurrentConfig(session)
+	if err != nil {
+		return err
+	}
+	oldconfig := *config
+	config.Version++
+	for _, rem := range addrs {
+		for n, repl := range config.Members {
+			if repl.Address == rem {
+				config.Members = append(config.Members[:n], config.Members[n+1:]...)
+				break
+			}
+		}
+	}
+	return applyReplSetConfig("Remove", session, &oldconfig, config)
+}
+
 // Config reports information about the configuration of a given mongo node
 type IsMasterResults struct {
 	// The following fields hold information about the specific mongodb node.
@@ -542,7 +562,6 @@ var connectionErrors = []syscall.Errno{
 	syscall.ETIMEDOUT,    // "connection timed out"
 }
 
-
 func isConnectionNotAvailable(err error) bool {
 	if err == nil {
 		return false
@@ -593,9 +612,9 @@ func IsReady(session *mgo.Session) (bool, error) {
 }
 
 // Fixme we use re reconcile logical, try not to block operator.
-//// WaitUntilReady waits until all members of the replicaset are ready.
-//// It will retry every 10 seconds until the timeout is reached. Dropped
-//// connections will trigger a reconnect.
+// WaitUntilReady waits until all members of the replicaset are ready.
+// It will retry every 10 seconds until the timeout is reached. Dropped
+// connections will trigger a reconnect.
 //func WaitUntilReady(session *mgo.Session, timeout int) error {
 //	attempts := utils.AttemptStrategy{
 //		Delay: 10 * time.Second,

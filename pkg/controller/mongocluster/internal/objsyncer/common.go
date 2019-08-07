@@ -1,8 +1,11 @@
 package objsyncer
 
 import (
-"k8s.io/apimachinery/pkg/runtime"
+	"github.smartx.com/mongo-operator/pkg/utils"
+	"k8s.io/apimachinery/pkg/runtime"
 )
+
+var logger = utils.NewLogger("syncer")
 
 var controllerLabels = map[string]string{
 	"app.kubernetes.io/managed-by": "mongo-operator",

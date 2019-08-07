@@ -135,8 +135,8 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj runtime.Object, f 
 		Name:      metaObj.GetName(),
 		Namespace: metaObj.GetNamespace(),
 	}
-	err := c.Get(ctx, key, obj)
 
+	err := c.Get(ctx, key, obj) // TODO vici Fixme here
 	// reconcile the existing object
 	existing := obj.DeepCopyObject()
 	existingObjMeta := existing.(v1.Object)

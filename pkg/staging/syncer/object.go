@@ -43,7 +43,8 @@ func (s *ObjectSyncer) Sync(ctx context.Context) (SyncResult, error) {
 	}
 
 	result.Operation, err = controllerutil.CreateOrUpdate(ctx, s.Client, s.Obj, s.mutateFn())
-
+	// NOTE: Obj updated here. ???
+	// Fixme sync sometime don't work.
 	// check deep diff
 	diff := deep.Equal(s.previousObject, s.Obj)
 
@@ -66,6 +67,8 @@ func (s *ObjectSyncer) Sync(ctx context.Context) (SyncResult, error) {
 
 // Given an ObjectSyncer, returns a controllerutil.MutateFn which also sets the
 // owner reference if the subject has one
+// Given an ObjectSyncer, returns a controllerutil.MutateFn which also sets the
+// owner reference if the subject has one
 func (s *ObjectSyncer) mutateFn() controllerutil.MutateFn {
 	return func(existing runtime.Object) error {
 		s.previousObject = existing.DeepCopyObject()
@@ -82,18 +85,9 @@ func (s *ObjectSyncer) mutateFn() controllerutil.MutateFn {
 			if !ok {
 				return fmt.Errorf("%T is not a metav1.Object", s.Owner)
 			}
-
-			// set owner reference only if owner resource is not being deleted, otherwise the owner
-			// reference will be reset in case of deleting with cascade=false.
-			if ownerMeta.GetDeletionTimestamp().IsZero() {
-				err := controllerutil.SetControllerReference(ownerMeta, existingMeta, s.Scheme)
-				if err != nil {
-					return err
-				}
-			} else if ctime := existingMeta.GetCreationTimestamp(); ctime.IsZero() {
-				// the owner is deleted, don't recreate the resource if does not exist, because gc
-				// will not delete it again because has no owner reference set
-				return errOwnerDeleted
+			err := controllerutil.SetControllerReference(ownerMeta, existingMeta, s.Scheme)
+			if err != nil {
+				return err
 			}
 		}
 		return nil

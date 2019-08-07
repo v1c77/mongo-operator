@@ -4,12 +4,15 @@ import (
 	"context"
 
 	dbv1alpha1 "github.smartx.com/mongo-operator/pkg/apis/db/v1alpha1"
+	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/failover"
 	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/objsyncer"
+	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
 	"github.smartx.com/mongo-operator/pkg/staging/syncer"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -18,17 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"github.smartx.com/mongo-operator/pkg/controller/mongocluster/internal/failover"
-	k8s "github.smartx.com/mongo-operator/pkg/service/kubernetes"
-	"k8s.io/client-go/kubernetes"
 )
 
 var log = logf.Log.WithName("controller_mongocluster")
-
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
 
 // Add creates a new MongoCluster Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -62,15 +57,12 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(vici) change Watch for changes to the resources that owned by the
 	// primary resource
-
 	subResources := []runtime.Object{
 		&corev1.Service{},
-		&corev1.ConfigMap{},   // TODO ConfigMap send mongoCluster config.
-		&appsv1.StatefulSet{}, // TODO STS hold all mongodb pod.
-		&appsv1.Deployment{},  // TODO ==DEPRECATED==
-		&corev1.Pod{},         // TODO pod add.
+		&corev1.ConfigMap{},
+		&appsv1.StatefulSet{},
+		&corev1.Pod{},
 	}
 
 	for _, subResource := range subResources {
@@ -102,7 +94,6 @@ type ReconcileMongoCluster struct {
 
 // Reconcile reads that state of the cluster for a MongoCluster object and makes changes based on the state read
 // and what is in the MongoCluster.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.Result, error) {
@@ -124,31 +115,28 @@ func (r *ReconcileMongoCluster) Reconcile(request reconcile.Request) (reconcile.
 		reqLogger.Info("some unknown error happened, retrying...")
 		return reconcile.Result{}, err
 	}
-
+	// set default values
 	r.scheme.Default(mc)
 	mc.SetDefaults()
 
-	reqLogger.Info("debug ingo",
-		"set number", mc.Spec.Mongo.Replicas)
-
-	// use stage/syncer to manage resource changes.
 	// each type of resources managed by MC has its own syncer
 	syncers := []syncer.Interface{
-		objsyncer.NewMongoServiceSyncer(mc, r.client, r.scheme),
 		objsyncer.NewMongoStatefulSetSyncer(mc, r.client, r.scheme),
-		// TODO(vici) configMap to support mongo replica set.
-		//objsyncer.NewMongoConfigMap(mc, r.client, r.scheme),
+		objsyncer.NewMongoServiceSyncer(mc, r.client, r.scheme), // only for create
+		objsyncer.NewMongoConfigMap(mc, r.client, r.scheme),
 	}
 
 	if err = r.sync(syncers); err != nil {
-		reqLogger.Error(err,"sync error, retry now.")
+		reqLogger.Error(err, "sync error, retry now.")
 		return reconcile.Result{}, err
 	}
 
-	// TODO(vici) something about mongo ops failover.... add node. delete node.
 	if err = r.failover.CheckAndHeal(mc); err != nil {
 		return reconcile.Result{}, err
 	}
+
+	// update Mc.Status
+	r.updateStatus(mc)
 
 	reqLogger.Info("reconcile done.")
 	return reconcile.Result{}, nil
@@ -160,5 +148,12 @@ func (r *ReconcileMongoCluster) sync(syncers []syncer.Interface) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (r *ReconcileMongoCluster) updateStatus(mc *dbv1alpha1.MongoCluster) error {
+	status := r.failover.GetMCStatus(mc)
+	mc.Status = status
+	r.client.Status().Update(context.TODO(), mc)
 	return nil
 }

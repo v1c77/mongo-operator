@@ -4,41 +4,42 @@ to manage a replica set of mongo in k8s.
 
 # build  && run
 
-```
-kubectl create -f deploy/crds/cache_v1alpha1_memcached_crd.yaml
-```
+```bash
+kubectl create -f deploy/crds/db_v1alpha1_mongocluster_crd.yaml
 
-
+kubectl create -f deploy/role.yaml
+kubectl create -f deploy/role_binding.yaml
+kubectl create -f deploy/service_account.yaml
+kubectl create -f deploy/operator.yaml
+```
 
 # dev
 
-1. 如果更改了 pkg/apis/*_types.go 相关 scheme 记得:
+> operator-sdk 版本 0.8.1
+
+1. 如果更改了 pkg/apis/*_types.go 相关 scheme，需要更新k8s api:
 
 ```bash
-operator-sdk generate k8s --verbose
-
+make gen-k8s
 ```
 
-**国内运行 operator-sdk 需要代理以安装依赖。**
+> **国内运行 operator-sdk 需要代理以安装依赖。**
 
-2. 更新代码逻辑后, image, 并更新 operator-部署 manifast 文件 image 相关内容。
+2. 更新 operator 代码逻辑后，需要重新打包上传.
 ```bash
-operator-sdk build  dockerhub.smartx.com/mongo-operator:v0.02    
-docker push dockerhub.smartx.com/mongo-operator:v0.02 
+make build # or `make build VERSION=0.0.4`  
 ```
-
 
 2. 快速验证
 
 operator-sdk 提供了 k8s 外运行 operator 的机制
 
-需要开发者配置好相应的 `~/.kube/config` 到开发机。 或者也可以主动在 `operator-sdk up local` 后指定 
-`--kubeconfig` 
+条件：
+-  `~/.kube/config`  存在并正确配置
+- 主机网络可感知 coreos, 正确配置 `/etc/resolv.conf` 
 
 ```bash
-export OPERATOR_NAME=mongo-operator
-operator-sdk up local --namespace=default
-
+make run
 ```
 
 --------------------
