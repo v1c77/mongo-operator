@@ -2,6 +2,12 @@
 
 to manage a replica set of mongo in k8s.
 
+# requirement
+
+-  a pvc provisioner: like a [local storage provisioner.](https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner)
+- dev requirement: operator-sdk.
+
+
 # build  && run
 
 ```bash
@@ -13,7 +19,7 @@ kubectl create -f deploy/service_account.yaml
 kubectl create -f deploy/operator.yaml
 ```
 
-# dev
+# dev.cn
 
 > operator-sdk 版本 0.8.1
 
